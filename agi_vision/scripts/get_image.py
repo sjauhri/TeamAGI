@@ -53,44 +53,6 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image 
 
 
-# from  https://github.com/jupidity/PCL-ROS-cluster-Segmentation/blob/master/scripts/pcl_helper.py
-def ros_to_pcl(ros_cloud):
-    """ Converts a ROS PointCloud2 message to a pcl PointXYZRGB
-    
-        Args:
-            ros_cloud (PointCloud2): ROS PointCloud2 message
-            
-        Returns:
-            pcl.PointCloud_PointXYZRGB: PCL XYZRGB point cloud
-    """
-    points_list = []
-
-    for data in pc2.read_points(ros_cloud, skip_nans=True):
-        points_list.append([data[0], data[1], data[2], data[3]])
-
-    pcl_data = pcl.PointCloud_PointXYZRGB()
-    pcl_data.from_list(points_list)
-
-    return pcl_data
-
-def segment_pcl(cloud):
-    fil = cloud.make_passthrough_filter()
-    fil.set_filter_field_name("z")
-    fil.set_filter_limits(0, 1.5)
-    cloud_filtered = fil.filter()
-
-    # print(cloud_filtered.size)
-
-    seg = cloud_filtered.make_segmenter_normals(ksearch=50)
-    seg.set_optimize_coefficients(True)
-    seg.set_model_type(pcl.SACMODEL_NORMAL_PLANE)
-    seg.set_normal_distance_weight(0.1)
-    seg.set_method_type(pcl.SAC_RANSAC)
-    seg.set_max_iterations(100)
-    seg.set_distance_threshold(0.03)
-    indices, model = seg.segment()
-    print(len(indices))
-    print(model)
 
 def callback(data):
     # gets pointcloud2 data from node 
@@ -102,11 +64,14 @@ def callback(data):
     # for p in pc2.read_points(data, field_names = ("x", "y", "z"), skip_nans=True):
     #     print " x : %f  y: %f  z: %f" %(p[0],p[1],p[2])
     pcl_data = ros_to_pcl(data)
+    extracting_indices(pcl_data)
     #print(pcl)
-    segment_pcl(pcl_data)
+    segment_pcl(pcl_data, data)
 
 # link for clusters: https://github.com/jupidity/PCL-ROS-cluster-Segmentation/blob/master/src/segmentation.cpp
     
+
+
 def pose_estimation():
 
     # In ROS, nodes are uniquely named. If two nodes with the same
@@ -123,7 +88,21 @@ def pose_estimation():
     # /xtion/depth_registered/points
     rospy.loginfo('started get image node') # %s and height %s' % (data.width, data.height))
     # spin() simply keeps python from exiting until this node is stopped
+
+    
+    pub = rospy.Publisher('chatter', String, queue_size=10)
+    rospy.init_node('talker', anonymous=True)
+    rate = rospy.Rate(1) # 1hz
+    while not rospy.is_shutdown():
+        
+        pub.publish(hello_str)
+        rate.sleep()
+
     rospy.spin()
 
+from pcl_handler import PCLHandler
+
 if __name__ == '__main__':
-    pose_estimation()
+    # pose_estimation()
+    PCLHandler()
+    
