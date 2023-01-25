@@ -1,6 +1,9 @@
 # Import modules
 import rospy
 # import ros_numpy
+import tf2_ros
+import tf2_py as tf2
+
 import pcl
 # https://github.com/strawlab/python-pcl
 import numpy as np
@@ -15,6 +18,7 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image 
 # http://docs.ros.org/en/noetic/api/shape_msgs/html/msg/Plane.html
 from shape_msgs.msg import Plane
+from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
 
 # https://answers.ros.org/question/59725/publishing-to-a-topic-via-subscriber-callback-function/
 class PCLHandler:
@@ -22,12 +26,16 @@ class PCLHandler:
         self.node = rospy.init_node('pcl_handling', anonymous=True)
 
         self.sub = rospy.Subscriber('/xtion/depth_registered/points', PointCloud2, self.callback)
-        self.pub_pcl2 = rospy.Publisher('Pointcloud2_rk', PointCloud2, queue_size=10)
-        self.pub_plane = rospy.Publisher('Plane_rk', Plane, queue_size=10)
+        self.pub1_pcl2 = rospy.Publisher('Pointcloud2_rk', PointCloud2, queue_size=10)
+        self.pub2_pcl2 = rospy.Publisher('Pointcloud2_0_rk', PointCloud2, queue_size=10)
+        # self.pub_plane = rospy.Publisher('Plane_rk', Plane, queue_size=10)
+        self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(1))
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         rospy.spin()
 
      
     def callback(self, data):
+        stamp = data.header.stamp
         # gets pointcloud2 data from node 
         if not data.is_dense:
             rospy.logwarn('invalid points in Pointcloud!')
@@ -44,7 +52,7 @@ class PCLHandler:
         print(plane_coeff)
         # plane_msg = Plane(plane_coeff)
         # print(plane_msg)
-        
+        # print(self.tf_buffer.all_frames_as_yaml())
 
         pcl_list = pcl_data.to_list()
         # print(pcl_list)
@@ -57,12 +65,28 @@ class PCLHandler:
         print(pcl_data)
         print(pcl_seg)
         pcl_seg_msg = self.pcl_to_ros(pcl_seg)
-        self.pub_pcl2.publish(pcl_seg_msg)
+        pcl_seg_transf = self.transform_to_base(pcl_seg_msg, stamp)
+        self.pub1_pcl2.publish(pcl_seg_msg)
+        self.pub2_pcl2.publish(pcl_seg_transf)
+        # self.pub_pcl2.publish(pcl_seg_msg)
+
+    def transform_to_base(self, pc_ros, stamp):
+
+        lookup_time = rospy.get_rostime() 
+        # end_time = stamp + rospy.Duration(10)
+        target_frame = "base_link"  # base_link
+        source_frame = "xtion_depth_frame"
+       
+        trans = self.tf_buffer.lookup_transform(target_frame, source_frame, lookup_time, rospy.Duration(1))
+
+        cloud_out = do_transform_cloud(pc_ros, trans)
+        return cloud_out
+
 
     def segment_pcl(self, cloud_pcl):
         fil = cloud_pcl.make_passthrough_filter()
         fil.set_filter_field_name("z")
-        fil.set_filter_limits(0, 1.5)
+        fil.set_filter_limits(0.46, 1.5)
         cloud_filtered = fil.filter()
 
     # print(cloud_filtered.size)
