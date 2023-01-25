@@ -44,30 +44,31 @@ class PCLHandler:
         # for p in pc2.read_points(data, field_names = ("x", "y", "z"), skip_nans=True):
         #     print " x : %f  y: %f  z: %f" %(p[0],p[1],p[2])
         pcl_data = self.ros_to_pcl(data)
+        fil = pcl_data.make_passthrough_filter()
+        fil.set_filter_field_name("z")
+        fil.set_filter_limits(0.49, 0.8)
+        cloud_filtered = fil.filter()
         #pcl_filter = self.extracting_indices(pcl_data)
         #pcl_msg = self.pcl_to_ros(pcl_filter)
         # self.pub_pcl2.publish(pcl_msg)
         print("starting segmentation")
-        indices, plane_coeff = self.segment_pcl(pcl_data)
+        
+        pcl_seg = pcl.PointCloud_PointXYZRGB()
+        # find planes iteratively
+        indices, plane_coeff = self.segment_pcl(cloud_filtered)
         print(plane_coeff)
         # plane_msg = Plane(plane_coeff)
         # print(plane_msg)
         # print(self.tf_buffer.all_frames_as_yaml())
-
-        pcl_list = pcl_data.to_list()
         # print(pcl_list)
-        pcl_seg_list = []
-        for ind in indices:
-            pcl_seg_list.append(pcl_list[ind])
-
-        pcl_seg = pcl.PointCloud_PointXYZRGB()
-        pcl_seg.from_list(pcl_seg_list)
-        print(pcl_data)
-        print(pcl_seg)
-        pcl_seg_msg = self.pcl_to_ros(pcl_seg)
+        cloud_table = cloud_filtered.extract(indices, negative=False)
+        cloud_cubes = cloud_filtered.extract(indices, negative=True)
+        print(cloud_filtered)
+        print(cloud_cubes)
+        pcl_seg_msg = self.pcl_to_ros(cloud_cubes)
         pcl_seg_transf = self.transform_to_base(pcl_seg_msg, stamp)
         self.pub1_pcl2.publish(pcl_seg_msg)
-        self.pub2_pcl2.publish(pcl_seg_transf)
+        # self.pub2_pcl2.publish(pcl_seg_transf)
         # self.pub_pcl2.publish(pcl_seg_msg)
 
     def transform_to_base(self, pc_ros, stamp):
@@ -84,20 +85,17 @@ class PCLHandler:
 
 
     def segment_pcl(self, cloud_pcl):
-        fil = cloud_pcl.make_passthrough_filter()
-        fil.set_filter_field_name("z")
-        fil.set_filter_limits(0.46, 1.5)
-        cloud_filtered = fil.filter()
+
 
     # print(cloud_filtered.size)
     
-        seg = cloud_filtered.make_segmenter_normals(ksearch=50)
+        seg = cloud_pcl.make_segmenter_normals(ksearch=50)
         seg.set_optimize_coefficients(True)
-        seg.set_model_type(pcl.SACMODEL_NORMAL_PLANE)
+        seg.set_model_type(pcl.SACMODEL_PLANE)
         seg.set_normal_distance_weight(0.1)
         seg.set_method_type(pcl.SAC_RANSAC)
-        seg.set_max_iterations(100)
-        seg.set_distance_threshold(0.03)
+        seg.set_max_iterations(200)
+        seg.set_distance_threshold(0.02)
         indices, coefficients = seg.segment()
         
 
