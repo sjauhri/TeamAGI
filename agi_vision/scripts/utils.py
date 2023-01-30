@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.cluster import KMeans, DBSCAN
 import pcl
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Pose
 import rospy
 from tf.transformations import quaternion_from_euler
 # kmeans clustering    
@@ -52,7 +52,7 @@ def find_edge(points,centroid):
     center=centroid[0:3]
     distances=np.linalg.norm(white_cloud-center,axis=1)
     centroid_idx=np.argmin(distances)
-    distances[np.where(distances>0.0321)]=0
+    distances[np.where(distances>0.0319)]=0
     indices=np.where(distances>0.031) 
     best_point=np.argmax(distances)
     # indices=indices[0].tolist()
@@ -107,14 +107,12 @@ def get_pose(A, B):
     Y=np.arctan2(C[0], C[2])
     Z=np.arctan2(C[1], C[0])-np.pi/4
     q=quaternion_from_euler(Y,X,Z)
-    pose = PoseStamped()
-    pose.header.frame_id = "base_footprint"
-    pose.header.stamp = rospy.Time.now()
-    pose.pose.position.x = A[0]
-    pose.pose.position.y = A[1]
-    pose.pose.position.z = A[2]-0.0225
-    pose.pose.orientation.x = q[0]
-    pose.pose.orientation.y = q[1]
-    pose.pose.orientation.z = q[2]
-    pose.pose.orientation.w = q[3]
+    pose = Pose()
+    pose.position.x = A[0]
+    pose.position.y = A[1]
+    pose.position.z = A[2]-0.0225
+    pose.orientation.x = q[0]
+    pose.orientation.y = q[1]
+    pose.orientation.z = q[2]
+    pose.orientation.w = q[3]
     return pose
