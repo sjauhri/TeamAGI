@@ -89,7 +89,7 @@ class GetNextStackLocation(py_trees.behaviour.Behaviour):
         loc = PoseStamped()
         loc.header.frame_id = "base_footprint"
         loc.pose.position.x = 0.6
-        loc.pose.position.y = 0.75 / 2
+        loc.pose.position.y = 0
         loc.pose.position.z = 0.45 + 0.045 * len(
             self.blackboard.blocks_in_stack) + 0.01
         loc.pose.orientation.w = 1.0

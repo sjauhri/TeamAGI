@@ -3,18 +3,21 @@
 
 import operator
 import rospy
+import sys
 import py_trees
 import py_trees.console as console
 import py_trees_ros.trees
 
-from behaviors import robot_behaviors
-from behaviors import scene_behaviors
+from behaviours import robot_behaviours
+from behaviours import scene_behaviours
+from behaviours import util_behaviours
 
 
 def agi_ctrl_root():
     """
     This is the root of the behavior tree.
     """
+    blackboard = py_trees.blackboard.Blackboard()
     # Create the root node
     root = py_trees.composites.Parallel(
         name="AGI Control",
@@ -22,37 +25,60 @@ def agi_ctrl_root():
 
     # Data collection
     data2bb = py_trees.composites.Sequence(name="Data to Blackboard")
-    data2bb.add_child(scene_behaviors.GetSceneBlocks())
+    data2bb.add_child(scene_behaviours.GetSceneBlocks())
 
     # Task execution
+    # Layer 1: Tasks
     tasks = py_trees.composites.Selector(name="Tasks")
     stack_block = py_trees.composites.Sequence(name="Stack Block")
-    need_new_block = py_trees.composites.Selector(name="Need New Block")
-    get_new_block = py_trees.composites.Sequence(name="Get New Block")
-    get_new_block.add_child(scene_behaviors.PopNextBlock())
-    get_new_block.add_child(scene_behaviors.GetNextStackLocation())
-    pick_block = py_trees.decorators.FailureIsSuccess(
-        robot_behaviors.PickBlock(name="Pick Block"))
-    place_block = robot_behaviors.PlaceBlock(name="Place Block")
+    idle = py_trees.behaviours.Running(name="Idle")
+    tasks.add_child(stack_block)
+    tasks.add_child(idle)
 
+    # Layer 2: Stack Block
     # Check if the variable next_block is not None
+    need_new_block = py_trees.composites.Selector(name="Need New Block")
+    pick_block = py_trees.composites.Sequence(name="Pick Block")
+    place_block = robot_behaviours.PlaceBlock(name="Place Block")
+    stack_block.add_child(need_new_block)
+    stack_block.add_child(pick_block)
+    stack_block.add_child(place_block)
+
+    # Layer 3: Need New Block
     has_block = py_trees.blackboard.CheckBlackboardVariable(
         name="Has Block",
         variable_name="next_block",
         expected_value='',
         comparison_operator=operator.ne)
-    idle = py_trees.behaviours.Running(name="Idle")
-
+    get_new_block = py_trees.composites.Sequence(name="Get New Block")
     need_new_block.add_child(has_block)
     need_new_block.add_child(get_new_block)
-    stack_block.add_child(need_new_block)
-    stack_block.add_child(pick_block)
-    stack_block.add_child(place_block)
-    tasks.add_child(stack_block)
-    tasks.add_child(idle)
+
+    # Layer 3: Pick Block
+    select_arm = robot_behaviours.SelectArm(name="Select Arm")
+    change_arm = py_trees.composites.Selector(name="Change Arm")
+    pick = py_trees.decorators.FailureIsSuccess(
+        robot_behaviours.PickBlock(name="Pick Block"))
+    pick_block.add_child(select_arm)
+    pick_block.add_child(change_arm)
+    pick_block.add_child(pick)
+
+    # Layer 4: Get New Block
+    pop_next_block = scene_behaviours.PopNextBlock(name="Pop Next Block")
+    get_next_stack_location = scene_behaviours.GetNextStackLocation(
+        name="Get Next Stack Location")
+    get_new_block.add_child(pop_next_block)
+    get_new_block.add_child(get_next_stack_location)
+
+    # Layer 4: Change Arm
+    has_same_arm = util_behaviours.CompareTwoBlackboardVariables(
+        variable1="left_right", variable2="left_right_old")
+    move_arm_to_rest = robot_behaviours.MoveArmToRest(name="Move Arm to Rest")
+    change_arm.add_child(has_same_arm)
+    change_arm.add_child(move_arm_to_rest)
+
     root.add_child(data2bb)
     root.add_child(tasks)
-
     return root
 
 
