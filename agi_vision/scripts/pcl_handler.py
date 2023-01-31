@@ -26,8 +26,20 @@ class PCLHandler:
         self.node = rospy.init_node('pcl_handling', anonymous=True)
 
         self.sub = rospy.Subscriber('/xtion/depth_registered/points', PointCloud2, self.callback)
-        self.pub1_pcl2 = rospy.Publisher('Pointcloud2_rk', PointCloud2, queue_size=10)
-        self.pub2_pcl2 = rospy.Publisher('Edge_points', PointCloud2, queue_size=10)
+        self.pub_pcl_filter = rospy.Publisher('Pointcloud2_filtered', PointCloud2, queue_size=10)
+        self.pub_pcl_planes = rospy.Publisher('Pointcloud2_cube_planes', PointCloud2, queue_size=10)
+        self.pub_pcl_edges = rospy.Publisher('Edge_points', PointCloud2, queue_size=10)
+
+
+        self.pub1_edge = rospy.Publisher('Edge_point1', PointCloud2, queue_size=10)
+        self.pub2_edge = rospy.Publisher('Edge_point2', PointCloud2, queue_size=10)
+        self.pub3_edge = rospy.Publisher('Edge_point3', PointCloud2, queue_size=10)
+        self.pub4_edge = rospy.Publisher('Edge_point4', PointCloud2, queue_size=10)
+        self.pub5_edge = rospy.Publisher('Edge_point5', PointCloud2, queue_size=10)
+        self.pub6_edge = rospy.Publisher('Edge_point6', PointCloud2, queue_size=10)
+        self.pub7_edge = rospy.Publisher('Edge_point7', PointCloud2, queue_size=10)
+        self.pub8_edge = rospy.Publisher('Edge_point8', PointCloud2, queue_size=10)
+
         self.pub3_pose = rospy.Publisher('cube_poses', PoseArray, queue_size=10)
         # self.pub_plane = rospy.Publisher('Plane_rk', Plane, queue_size=10)
         self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(1))
@@ -44,12 +56,19 @@ class PCLHandler:
         data=self.transform_to_base(data, stamp)  
         # for p in pc2.read_points(data, field_names = ("x", "y", "z"), skip_nans=True):
         #     print " x : %f  y: %f  z: %f" %(p[0],p[1],p[2])
-        n_clusters=8 
+
+        n_clusters = 3  # TODO make config!
+        
+        
         pcl_data = self.ros_to_pcl(data)
         fil = pcl_data.make_passthrough_filter()
         fil.set_filter_field_name("z")
         fil.set_filter_limits(0.47, 1.5)
         cloud_filtered = fil.filter()
+
+        # publish filtered cloud 
+        self.pub_pcl_filter.publish(self.pcl_to_ros(cloud_filtered))
+
         #pcl_filter = self.extracting_indices(pcl_data)
         #pcl_msg = self.pcl_to_ros(pcl_filter)
         # self.pub_pcl2.publish(pcl_msg)
@@ -67,7 +86,7 @@ class PCLHandler:
          
         # get cube planes
         plane_indices=[] 
-        cloud_plane=cloud_filtered
+        cloud_plane = cloud_filtered
         indices, plane_coeff = self.segment_pcl(cloud_plane,pcl.SACMODEL_PLANE)
         cloud_plane = cloud_filtered.extract(indices, negative=False)     
 
@@ -75,34 +94,71 @@ class PCLHandler:
         # Do clustering 
         clustered_points=cloud_plane
         # white_cloud = self.XYZRGB_to_XYZ(cloud_filtered) 
-        cluster_indices,centroids=k_means_clustering(np.array(cloud_plane),n_clusters,1000)
+        cluster_indices, centroids=k_means_clustering(np.array(cloud_plane),n_clusters,1000)
         # cluster_indices=DBSCAN_clustering(np.array(cloud_plane))
         #check clusetered points
         # print("number of clusters")
         # print(len(cluster_indices)) 
-        clustered_points = cloud_plane.extract(cluster_indices[1], negative=False)
+
+
         
-        #find edge points
-        edge_points,best_point=find_edge(clustered_points,centroids[1])
         
+        # try to make it smart
+        if False:
+            edge_point_list = []
+            for i, cent in enumerate(centroids):
+                clustered_points = cloud_plane.extract(cluster_indices[i], negative=False)
+                best_point, indices = find_edge(clustered_points, cent)
+                edge_point_list.extend(indices)
+            print(edge_point_list)
+            edge_points = cloud_plane.extract(edge_point_list, negative=False)
+            print("edge point")
+            print(edge_points)    
+            self.pub_pcl_edges.publish(self.pcl_to_ros(edge_points))
+
+        # clustered_points = cloud_plane.extract(cluster_indices[1], negative=False)
+        # edge_points,best_point, indices=find_edge(clustered_points,centroids[1])
+        
+        ####
+
+
+
         # get pose array
+        interest_point_list = [] 
         cube_poses=PoseArray()
         for i in range(n_clusters):
              clustered_points = cloud_plane.extract(cluster_indices[i], negative=False)
-             _,best_point=find_edge(clustered_points,centroids[i])
+             edge_points, best_point, indices = find_edge(clustered_points,centroids[i])
+             #
+             interest_point_list.append(edge_points)
+             #
              pose=get_pose(centroids[i],clustered_points[best_point]) 
              cube_poses.poses.append(pose)
         cube_poses.header.frame_id = "base_footprint"
         cube_poses.header.stamp = rospy.Time.now()     
         
+        #
+        print(interest_point_list)
+        #int_oint = interest_point_list[0]
+        if False:
+            self.pub1_edge.publish(self.pcl_to_ros(interest_point_list[0]))
+            self.pub2_edge.publish(self.pcl_to_ros(interest_point_list[1]))
+            self.pub3_edge.publish(self.pcl_to_ros(interest_point_list[2]))
+            self.pub4_edge.publish(self.pcl_to_ros(interest_point_list[3]))
+            self.pub5_edge.publish(self.pcl_to_ros(interest_point_list[4]))
+            self.pub6_edge.publish(self.pcl_to_ros(interest_point_list[5]))
+            self.pub7_edge.publish(self.pcl_to_ros(interest_point_list[6]))
+            self.pub8_edge.publish(self.pcl_to_ros(interest_point_list[7]))
+        #
+
         # publishing
         pcl_seg_msg = self.pcl_to_ros(cloud_plane)
         pcl_clustered=self.pcl_to_ros(edge_points)
        
         # pcl_seg_transf = self.transform_to_base(pcl_seg_msg, stamp)
-        self.pub1_pcl2.publish(pcl_seg_msg)
-        self.pub2_pcl2.publish(pcl_clustered)
-        self.pub3_pose.publish(cube_poses)
+        self.pub_pcl_planes.publish(pcl_seg_msg)  # cube planes 
+        # self.pub2_pcl2.publish(pcl_clustered)  # edge points 
+        self.pub3_pose.publish(cube_poses)  # cube poses 
         # self.pub2_pcl2.publish(pcl_seg_transf)
         # self.pub_pcl2.publish(pcl_seg_msg)
 

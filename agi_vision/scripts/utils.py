@@ -61,7 +61,7 @@ def find_edge(points,centroid):
     indices.append(best_point)
     indices.append(centroid_idx)
     edge_points=points.extract(indices, negative=False)
-    return edge_points,best_point
+    return edge_points, best_point, indices
 
 
 # def get_pose(A, B):

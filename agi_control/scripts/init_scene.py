@@ -4,7 +4,7 @@ import rospy
 
 # ros
 from geometry_msgs.msg import PoseStamped
-
+from geometry_msgs.msg import PoseArray
 # movit
 from moveit_commander import PlanningSceneInterface
 from moveit_msgs.srv import GetPlanningScene
@@ -23,6 +23,10 @@ class InitScene(object):
         self.scene_srv = rospy.ServiceProxy("/get_planning_scene",
                                             GetPlanningScene)
         self.scene_srv.wait_for_service()
+
+        # self.sub_cubes = rospy.Subscriber('/cube_poses', PoseArray, self.update_scene)
+        
+
         rospy.loginfo("Connected.")
         rospy.sleep(1)
 
@@ -55,6 +59,16 @@ class InitScene(object):
                 box_pose.pose.orientation.w = 1.0
                 self.add_box("box" + str(i * 4 + j), box_pose, box["size"])
 
+    def update_scene(self):
+        self.pose_array = rospy.wait_for_message('/cube_poses', PoseArray)
+        
+        for i, pose in enumerate(self.pose_array.poses):
+            pose_stamp = PoseStamped()
+            pose_stamp.header.frame_id = "base_footprint"
+
+            pose_stamp.pose = pose
+            self.add_box("box_" + str(i), pose_stamp, box["size"])
+        
     def clean_scene(self):
         """Clean the scene from all objects"""
         rospy.loginfo("Cleaning scene")
@@ -66,5 +80,6 @@ if __name__ == "__main__":
     rospy.init_node("init_scene")
     init_scene = InitScene()
     init_scene.clean_scene()
-    init_scene.create_default_scene()
+    # init_scene.create_default_scene()
+    init_scene.update_scene()
     rospy.spin()

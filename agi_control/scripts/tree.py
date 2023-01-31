@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     tree = py_trees_ros.trees.BehaviourTree(root=root)
     console.logdebug("Tree created")
-    tree.setup(10000)
+    tree.setup(30000)
     console.logdebug("Tree setup")
     try:
         console.loginfo("Starting AGI Control")
