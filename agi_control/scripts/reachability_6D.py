@@ -116,6 +116,7 @@ if __name__ == '__main__':
     pose1 = np.array(([[x,y,z,rx,ry,rz]]))
     pose2 = np.array(([[x,y,z,rx,ry,rz],[x,y,z,rx,ry,rz],[x,y,z,rx,ry,rz]]))
     
+    print("shape of input poses:", pose2.shape)
     arm = Arm(pose2)    
     print(arm.getArm()) 
 
