@@ -18,23 +18,15 @@ import timeit
 
 class Arm():
         
-    def __init__(self,x,y,z,rx,ry,rz):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.rx = rx
-        self.ry = ry
-        self.rz = rz
-        self.pos = np.array(([self.x,self.y,self.z,self.rx,self.ry,self.rz]))
-        # print(self.pos)
-    # def __init__(self):
-    #     pass
+    def __init__(self,pose):
+        self.pos =pose
+
 
     def reachMap(self):
-        # npy file -> array (reach map)
-        # search the path of maps folder
+        # npy file -> array (reach map)        
         start=timeit.default_timer()
         
+        # search the path of maps folder
         path_curr = os.getcwd()
         path_pre = os.path.abspath(os.path.dirname(path_curr))
         path_pre_pre = os.path.abspath(os.path.dirname(path_pre))        
@@ -44,43 +36,36 @@ class Arm():
             path_maps = path_pre
         else:
             path_maps = path_pre_pre
-        # print(path_curr)
-        # print(path_maps)   
-        # path_map_left = os.path.join(path_maps, \
-        #                             'maps/filtered_3D_reach_map_gripper_left_grasping_frame_torso_False_0.05_2022-08-29-19-04-04.npy')
-        # path_map_right = os.path.join(path_maps, \
-        #                             'maps/filtered_3D_reach_map_gripper_right_grasping_frame_torso_False_0.05_2022-08-29-19-04-04.npy')
-        # map_left = np.load(path_map_left)    #(x,y,z,score)
-        # map_right = np.load(path_map_right)
+        # load the maps
         path_map_left = os.path.join(path_maps, \
                                     'maps/filt_reach_map_gripper_left_grasping_frame_torso_False.pkl')
         path_map_right = os.path.join(path_maps, \
                                     'maps/filt_reach_map_gripper_right_grasping_frame_torso_False.pkl')
         map_left = pickle.load(open(path_map_left,"rb"))    
         map_right = pickle.load(open(path_map_right,"rb")) 
-        # print(np.max(map_left, axis=0))
-        # print(np.min(map_left, axis=0))
-        # print(map_right.shape)
-        # print(map_right[-10:,:])
-        
+
         end=timeit.default_timer()
         print('Running time of load map: %s Seconds'%(end-start))
         
         return map_left, map_right
 
     def score(self,map,pos):              
-        # reach map,position -> score
-        # find the nearst cell in the reach map
-        squ_dist = np.sum((map[:,:3]-pos[:3])**2,axis=1)
-        inds_min_dist = np.argwhere(squ_dist<=squ_dist[np.argmin(squ_dist)]).reshape(-1)
-        cell = map[inds_min_dist,:]
-        
-        # in the cell find the similarst rotation
-        squ_rota = np.sum((cell[:,3:6]-pos[3:6])**2,axis=1)
-        inds_min_rota = np.argwhere(squ_rota<=squ_rota[np.argmin(squ_rota)]).reshape(-1)
-        
-        score = map[inds_min_dist[inds_min_rota],7]
-        return score
+        # reach map,poses -> list of scores
+        list_score = []
+        for p in pos:
+            # find the nearst cell in the reach map
+            pose = pos.reshape(-1)
+            squ_dist = np.sum((map[:,:3]-pose[:3])**2,axis=1)
+            inds_min_dist = np.argwhere(squ_dist<=squ_dist[np.argmin(squ_dist)]).reshape(-1)
+            cell = map[inds_min_dist,:]
+            
+            # in the cell find the similarst rotation
+            squ_rota = np.sum((cell[:,3:6]-pose[3:6])**2,axis=1)
+            inds_min_rota = np.argwhere(squ_rota<=squ_rota[np.argmin(squ_rota)]).reshape(-1)
+            
+            list_score.append(map[inds_min_dist[inds_min_rota],7])
+            
+        return list_score
 
 
 
@@ -96,22 +81,27 @@ class Arm():
             return "right"
         
     def getArm(self):
-        map_left, map_right = self.reachMap()    
-        # better reachability score(0~100) -> select arm
+        # better reachability score -> select arm
+        map_left, map_right = self.reachMap() 
+        list_arm = []   
+  
         start=timeit.default_timer()
         
-        score_l = self.score(map_left, self.pos)  # minmal distance and index
-        score_r = self.score(map_right, self.pos)
+        list_score_l = self.score(map_left, self.pos)  # minmal distance and index
+        list_score_r = self.score(map_right, self.pos)
               
         end=timeit.default_timer()
         print('Running time of get scores: %s Seconds'%(end-start))
         
-        arm = self.selectArm(score_l, score_r)  # unreachable="", left="left", right="right"
-        print("score_l:",score_l)
-        print("score_r",score_r)
+        for i in range(len(list_score_l)):
+            list_arm.append(self.selectArm(list_score_l[i], list_score_r[i]))  # unreachable="", left="left", right="right"
+        print("score_l:",list_score_l)
+        print("score_r",list_score_r)
         # print(arm)
-  
-        return arm
+        if len(list_arm)==1:
+            return list_arm[0]
+        else:
+            return list_arm
 
 
      
@@ -123,9 +113,12 @@ if __name__ == '__main__':
     rx = (-1 + 2*random.random())*3
     ry = (-1 + 2*np.random.random())*1.4
     rz = (-1 + 2*random.random())*3
+    pose1 = np.array(([[x,y,z,rx,ry,rz]]))
+    pose2 = np.array(([[x,y,z,rx,ry,rz],[x,y,z,rx,ry,rz],[x,y,z,rx,ry,rz]]))
     
-    arm = Arm(x,y,z,rx,ry,rz)    
+    arm = Arm(pose2)    
     print(arm.getArm()) 
+
     
 
     

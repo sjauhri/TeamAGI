@@ -8,6 +8,10 @@ from geometry_msgs.msg import PoseStamped
 import py_trees.console as console
 from py_trees.blackboard import Blackboard
 from moveit_msgs.srv import GetPlanningScene
+import sys
+import numpy as np
+sys.path.append('..')
+from reachability_6D import Arm
 
 
 class GetSceneBlocks(py_trees.behaviour.Behaviour):
@@ -89,11 +93,23 @@ class GetNextStackLocation(py_trees.behaviour.Behaviour):
         loc = PoseStamped()
         loc.header.frame_id = "base_footprint"
         loc.pose.position.x = 0.6
-        loc.pose.position.y = 0
+        loc.pose.position.y = 0.75 / 2
         loc.pose.position.z = 0.45 + 0.045 * len(
             self.blackboard.blocks_in_stack) + 0.01
         loc.pose.orientation.w = 1.0
         self.blackboard.next_stack_location = loc
+        
+        # selsect arm
+        loc.pose.orientation.x = 1
+        loc.pose.orientation.y = 0
+        loc.pose.orientation.z = -1
+        # pose should in form np.array(n,6)
+        # pose(1,6) -> single string, pose(n,6),n>=2 -> list of strings
+        pose = np.array(([[loc.pose.position.x,loc.pose.position.y,loc.pose.position.z,\
+                  loc.pose.orientation.x,loc.pose.orientation.y,loc.pose.orientation.z]]))
+        arm = Arm(pose)        
+        self.left_right = arm.getArm() 
+        
         return py_trees.common.Status.SUCCESS
 
 
