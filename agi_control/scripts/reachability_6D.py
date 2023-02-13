@@ -38,9 +38,9 @@ class Arm():
             path_maps = path_pre_pre
         # load the maps
         path_map_left = os.path.join(path_maps, \
-                                    'maps/filt_reach_map_gripper_left_grasping_frame_torso_False.pkl')
+                                    'maps/reach_map_6D_aboveTable_left.pkl')
         path_map_right = os.path.join(path_maps, \
-                                    'maps/filt_reach_map_gripper_right_grasping_frame_torso_False.pkl')
+                                    'maps/reach_map_6D_aboveTable_right.pkl')
         map_left = pickle.load(open(path_map_left,"rb"))    
         map_right = pickle.load(open(path_map_right,"rb")) 
 
@@ -119,11 +119,4 @@ if __name__ == '__main__':
     print("shape of input poses:", pose2.shape)
     arm = Arm(pose2)    
     print(arm.getArm()) 
-
-    
-
-    
-    
-    
-    
-    
+  
