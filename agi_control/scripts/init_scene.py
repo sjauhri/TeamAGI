@@ -2,12 +2,18 @@
 # -*- coding: utf-8 -*-
 import rospy
 
+#numpy
+import numpy as np
+
 # ros
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseArray
+from visualization_msgs.msg import MarkerArray
 # movit
 from moveit_commander import PlanningSceneInterface
 from moveit_msgs.srv import GetPlanningScene
+
+from utils.scene_utils import SceneUtils
 
 # object presets
 
@@ -15,7 +21,7 @@ table = {"size": [0.60, 0.75, 0.45]}
 box = {"size": [0.045, 0.045, 0.045], "mass": 0.66}
 
 
-class InitScene(object):
+class InitScene:
 
     def __init__(self):
         self._scene = PlanningSceneInterface()
@@ -23,52 +29,51 @@ class InitScene(object):
         self.scene_srv = rospy.ServiceProxy("/get_planning_scene",
                                             GetPlanningScene)
         self.scene_srv.wait_for_service()
-
-        # self.sub_cubes = rospy.Subscriber('/cube_poses', PoseArray, self.update_scene)
-        
-
         rospy.loginfo("Connected.")
         rospy.sleep(1)
 
-    def add_box(self, object_name, pose, size):
+    def add_box(self, name, pose, size):
         """Add a box to the planning scene"""
-        rospy.loginfo("Adding new '" + str(object_name) + "' object")
-        self._scene.add_box(object_name, pose, size)
+        rospy.loginfo("Adding {} to the planning scene".format(name))
+        self._scene.add_box(name, pose, size)
 
-    def create_default_scene(self):
-        """Create a default scene with a table and a box"""
+    def create_table(self):
         table_pose = PoseStamped()
         table_pose.header.frame_id = "base_footprint"
-        table_pose.pose.position.x = table["size"][0]
+        table_pose.pose.position.x = 0.5
         table_pose.pose.position.y = 0
         table_pose.pose.position.z = table["size"][2] / 2
         table_pose.pose.orientation.w = 1.0
-        #self.add_box("table", table_pose, table["size"])
-
-        # create 8 boxes in a 2x4 grid
-        box_pose = PoseStamped()
-        box_pose.header.frame_id = "base_footprint"
-        for i in range(2):
-            for j in range(4):
-                box_pose.pose.position.x = (table["size"][0] / 2 +
-                                            box["size"][0] +
-                                            i * box["size"][0] * 2)
-                box_pose.pose.position.y = table["size"][1] / 2 - (
-                    box["size"][1] + j * box["size"][1] * 2)
-                box_pose.pose.position.z = box["size"][2] / 2 + table["size"][2]
-                box_pose.pose.orientation.w = 1.0
-                self.add_box("box" + str(i * 4 + j), box_pose, box["size"])
+        self.add_box("table", table_pose, table["size"])
 
     def update_scene(self):
-        self.pose_array = rospy.wait_for_message('/cube_poses', PoseArray)
-        
-        for i, pose in enumerate(self.pose_array.poses):
+        su = SceneUtils()
+        cube_poses = rospy.wait_for_message('/cube_poses', PoseArray)
+
+        for i, pose in enumerate(cube_poses.poses):
             pose_stamp = PoseStamped()
             pose_stamp.header.frame_id = "base_footprint"
-
             pose_stamp.pose = pose
-            self.add_box("box_" + str(i), pose_stamp, box["size"])
-        
+            self.add_box("box{}".format(i), pose_stamp, box["size"])
+
+        boxes_obj = su.get_scene_blocks()
+        table_obj = su.get_table_block()
+
+        free_region = su.get_free_region(boxes_obj, table_obj)
+        markers = MarkerArray()
+        for region in free_region:
+            loc = np.append(region[0], table["size"][2] + 0.01)
+            rad = region[1]
+            rospy.loginfo("Creating marker at {} with radius {}".format(
+                loc, rad))
+            markers.markers.append(su.create_marker(loc, rad))
+
+        pub_markers = rospy.Publisher('/free_region',
+                                      MarkerArray,
+                                      queue_size=10)
+        pub_markers.publish(markers)
+        rospy.sleep(0.1)
+
     def clean_scene(self):
         """Clean the scene from all objects"""
         rospy.loginfo("Cleaning scene")
@@ -78,8 +83,12 @@ class InitScene(object):
 
 if __name__ == "__main__":
     rospy.init_node("init_scene")
+    rate = rospy.Rate(10)
     init_scene = InitScene()
     init_scene.clean_scene()
-    # init_scene.create_default_scene()
-    init_scene.update_scene()
+    #init_scene.create_default_scene()
+    init_scene.create_table()
+    while not rospy.is_shutdown():
+        init_scene.update_scene()
+
     rospy.spin()

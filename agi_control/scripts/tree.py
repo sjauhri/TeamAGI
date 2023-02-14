@@ -16,23 +16,29 @@ def agi_ctrl_root():
     This is the root of the behavior tree.
     """
     # Create the root node
-    root = py_trees.composites.Parallel(
-        name="AGI Control",
-        policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ALL)
+    root = py_trees.composites.Sequence(name="AGI Control")
 
-    # Data collection
+    # Data collection sequence
     data2bb = py_trees.composites.Sequence(name="Data to Blackboard")
+    # Get scene blocks
     data2bb.add_child(scene_behaviors.GetSceneBlocks())
 
-    # Task execution
+    # Tasks selector
     tasks = py_trees.composites.Selector(name="Tasks")
+    # Stack block sequence
     stack_block = py_trees.composites.Sequence(name="Stack Block")
+    # Need new block selector
     need_new_block = py_trees.composites.Selector(name="Need New Block")
+    # Get new block sequence
     get_new_block = py_trees.composites.Sequence(name="Get New Block")
+    # Pop next block from scene
     get_new_block.add_child(scene_behaviors.PopNextBlock())
+    # Get next stack location
     get_new_block.add_child(scene_behaviors.GetNextStackLocation())
+    # Pick block behavior
     pick_block = py_trees.decorators.FailureIsSuccess(
         robot_behaviors.PickBlock(name="Pick Block"))
+    # Place block behavior
     place_block = robot_behaviors.PlaceBlock(name="Place Block")
 
     # Check if the variable next_block is not None
@@ -41,6 +47,7 @@ def agi_ctrl_root():
         variable_name="next_block",
         expected_value='',
         comparison_operator=operator.ne)
+    # Idle behavior
     idle = py_trees.behaviours.Running(name="Idle")
 
     need_new_block.add_child(has_block)
