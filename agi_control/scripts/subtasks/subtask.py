@@ -33,7 +33,7 @@ class SubtaskGuard(py_trees.behaviour.Behaviour):
 
     def update(self):
         for guard in self._guards:
-            if guard():
+            if guard.update() == py_trees.common.Status.FAILURE:
                 return py_trees.common.Status.FAILURE
         return py_trees.common.Status.SUCCESS
 
@@ -68,10 +68,19 @@ class Subtask:
         subtask = py_trees.composites.Selector(name=self.name)
         executor = py_trees.composites.Sequence(
             name="Execute_{}".format(self.name))
-        subtask.add_child(self.guard)
+
+        if self.guard is not None:
+            subtask.add_child(self.guard)
+
         subtask.add_child(executor)
-        subtask.add_child(self.recovery)
-        executor.add_child(self.action)
-        executor.add_child(self.end_condition)
+
+        if self.action is not None:
+            executor.add_child(self.action)
+
+        if self.end_condition is not None:
+            executor.add_child(self.end_condition)
+
+        if self.recovery is not None:
+            subtask.add_child(self.recovery)
 
         return subtask

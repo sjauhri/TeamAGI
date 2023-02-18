@@ -19,13 +19,15 @@ class Block():
         >>> block = Block("box1", PoseStamped())
     """
 
-    def __init__(self, id, pose):
+    def __init__(self, id, pose, confidence):
         self._scene = PlanningSceneInterface()
         self._id = id
         self._pose = pose
         self._scene.add_box(self._id, self._pose, (0.045, 0.045, 0.045))
         rospy.sleep(0.5)
         self._collision_object = self._scene.get_objects([self._id])[self._id]
+        self._properties = {}
+        self._confidence = confidence
 
     @property
     def id(self):
@@ -46,6 +48,17 @@ class Block():
     @property
     def orientation(self):
         return self._pose.pose.orientation
+
+    @property
+    def properties(self):
+        return self._properties
+
+    @property
+    def confidence(self):
+        return self._confidence
+
+    def add_property(self, name, value):
+        self._properties[name] = value
 
     def grasps(self):
         grasps = []
@@ -134,15 +147,15 @@ class BlockManager():
     def __init__(self):
         self._blocks = {}
 
-    def add_block(self, id, pose):
+    def add_block(self, id, pose, confidence):
         """This function adds a block to the block manager.
         Args:
             id (str): The id of the block
             pose (PoseStamped): The pose of the block
         """
-        self._blocks[id] = Block(id, pose)
+        self._blocks[id] = Block(id, pose, confidence)
 
-    def update_block(self, id, pose):
+    def update_block(self, id, pose, confidence):
         """This function updates the pose of a block.
         Args:
             id (str): The id of the block
@@ -150,6 +163,7 @@ class BlockManager():
         """
         block = self._blocks[id]
         block._pose = pose
+        block._confidence = confidence
         block.update()
 
     def identify_block(self, pose, threshold=0.05):
@@ -209,7 +223,7 @@ class BlockManager():
         else:
             return [self._blocks[id] for id in ids]
 
-    def manage(self, pose):
+    def manage(self, pose, confidence):
         """This function manages the blocks in the scene.
         Args:
             pose (PoseStamped): The pose of the block
@@ -217,7 +231,7 @@ class BlockManager():
         id = self.identify_block(pose)
         if id is None:
             id = "box" + str(len(self._blocks))
-            self.add_block(id, pose)
+            self.add_block(id, pose, confidence)
         else:
             self.update_block(id, pose)
 

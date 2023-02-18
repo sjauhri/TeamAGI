@@ -9,6 +9,8 @@ import py_trees_ros.trees
 
 from behaviors import robot_behaviors
 from behaviors import scene_behaviors
+from subtasks.get_cube import create_get_cube_subtask
+from subtasks.pick import create_pick_subtask
 
 
 def agi_ctrl_root():
@@ -26,36 +28,23 @@ def agi_ctrl_root():
     # Tasks selector
     tasks = py_trees.composites.Selector(name="Tasks")
     # Stack block sequence
-    stack_block = py_trees.composites.Sequence(name="Stack Block")
-    # Need new block selector
-    need_new_block = py_trees.composites.Selector(name="Need New Block")
-    # Get new block sequence
-    get_new_block = py_trees.composites.Sequence(name="Get New Block")
-    # Pop next block from scene
-    get_new_block.add_child(scene_behaviors.PopNextBlock())
-    # Get next stack location
-    get_new_block.add_child(scene_behaviors.GetNextStackLocation())
-    # Pick block behavior
-    pick_block = py_trees.decorators.FailureIsSuccess(
-        robot_behaviors.PickBlock(name="Pick Block"))
+    pick_place = py_trees.composites.Sequence(name="Pick and Place")
+
     # Place block behavior
     place_block = robot_behaviors.PlaceBlock(name="Place Block")
 
-    # Check if the variable next_block is not None
-    has_block = py_trees.blackboard.CheckBlackboardVariable(
-        name="Has Block",
-        variable_name="next_block",
-        expected_value='',
-        comparison_operator=operator.ne)
     # Idle behavior
     idle = py_trees.behaviours.Running(name="Idle")
 
-    need_new_block.add_child(has_block)
-    need_new_block.add_child(get_new_block)
-    stack_block.add_child(need_new_block)
-    stack_block.add_child(pick_block)
-    stack_block.add_child(place_block)
-    tasks.add_child(stack_block)
+    # Get cube subtask
+    get_cube_subtask = create_get_cube_subtask()
+    # Pick subtask
+    pick_subtask = create_pick_subtask()
+
+    pick_place.add_child(get_cube_subtask)
+    pick_place.add_child(pick_subtask)
+    pick_place.add_child(place_block)
+    tasks.add_child(pick_place)
     tasks.add_child(idle)
     root.add_child(data2bb)
     root.add_child(tasks)

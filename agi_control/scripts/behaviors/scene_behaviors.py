@@ -17,7 +17,6 @@ import py_trees.console as console
 from py_trees.blackboard import Blackboard
 
 # Utils
-from utils.block import Block
 from utils.block import BlockManager
 
 import pdb
@@ -62,7 +61,7 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
             self.table_co = self._scene.get_objects(["table"])["table"]
             return True
         except KeyError:
-            console.logerr("Table not found in the planning scene")
+            console.logerror("Table not found in the planning scene")
             return False
 
     def update(self):
@@ -73,28 +72,29 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         Returns:
             py_trees.common.Status.SUCCESS
         """
-        block_detections = self.__get_published_poses()
-        for pose in block_detections.poses:
+        cube_detections = self.__get_published_poses()
+        for pose in cube_detections.poses:
             pose_stamp = PoseStamped()
             pose_stamp.header.frame_id = "base_footprint"
             pose_stamp.pose = pose
-            self.block_manager.manage(pose_stamp)
+            # TODO: Add confidence to the block
+            self.block_manager.manage(pose_stamp, confidence=1.0)
 
-        console.loginfo("Found {} blocks in the scene".format(
-            len(block_detections.poses)))
+        console.loginfo("Found {} cubes in the scene".format(
+            len(cube_detections.poses)))
 
         self.__update_contact_objects()
 
-        blocks = self.block_manager.get_blocks()
-        stack_blocks = self.blackboard.blocks_in_stack
-        # Remove the blocks that are already in the stack
-        if len(stack_blocks) > 0:
-            blocks = [
-                block for block in blocks if block.id not in
-                [stack_block.id for stack_block in stack_blocks]
-            ]
+        cubes = self.block_manager.get_blocks()
+        # stack_blocks = self.blackboard.blocks_in_stack
+        # # Remove the blocks that are already in the stack
+        # if len(stack_blocks) > 0:
+        #     blocks = [
+        #         block for block in blocks if block.id not in
+        #         [stack_block.id for stack_block in stack_blocks]
+        #     ]
 
-        self.blackboard.scene_blocks = blocks
+        self.blackboard.scene_cubes = cubes
         self.blackboard.table_block = self.table_co
 
         return py_trees.common.Status.SUCCESS
@@ -124,54 +124,6 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         rospy.set_param("~links_to_allow_contact", links_to_allow_contact)
 
 
-class PopNextBlock(py_trees.behaviour.Behaviour):
-
-    def __init__(self, name="PopNextBlock"):
-        """Initialize the behavior."""
-        super(PopNextBlock, self).__init__(name=name)
-        self.blackboard = Blackboard()
-
-    def update(self):
-        """Pop the next block from the scene blocks list and store it in the blackboard."""
-        if self.blackboard.scene_blocks:
-            self.blackboard.next_block = self.blackboard.scene_blocks.pop()
-            console.loginfo("Poped block: {}".format(
-                self.blackboard.next_block.id))
-
-            return py_trees.common.Status.SUCCESS
-        else:
-            return py_trees.common.Status.FAILURE
-
-
-class GetNextStackLocation(py_trees.behaviour.Behaviour):
-
-    def __init__(self, name="GetNextStackLocation"):
-        """Initialize the behavior."""
-        super(GetNextStackLocation, self).__init__(name=name)
-        self.blackboard = Blackboard()
-        self.blackboard.blocks_in_stack = []
-
-    def initialise(self):
-        """Initialize the behavior."""
-        self.blackboard.next_stack_location = None
-
-    def update(self):
-        """Get the next stack location from the scene and store it in the blackboard."""
-        table_height = self.blackboard.table_block.primitives[0].dimensions[2]
-        block_height = self.blackboard.next_block.collision_object.primitives[
-            0].dimensions[2]
-        place_offset = 0.035
-        loc = PoseStamped()
-        loc.header.frame_id = "base_footprint"
-        loc.pose.position.x = 0.4
-        loc.pose.position.y = 0.2
-        loc.pose.position.z = 0.45 + 0.045 * len(
-            self.blackboard.blocks_in_stack) + place_offset
-        loc.pose.orientation.w = 1.0
-        self.blackboard.next_stack_location = loc
-        return py_trees.common.Status.SUCCESS
-
-
 class ResetNextBlock(py_trees.behaviour.Behaviour):
 
     def __init__(self, name="ResetNextBlock"):
@@ -181,5 +133,5 @@ class ResetNextBlock(py_trees.behaviour.Behaviour):
 
     def update(self):
         """Reset the next block in the blackboard."""
-        self.blackboard.next_block = None
+        self.blackboard.next_cube = None
         return py_trees.common.Status.SUCCESS
