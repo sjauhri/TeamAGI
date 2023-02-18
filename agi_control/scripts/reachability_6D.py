@@ -18,6 +18,7 @@ class Arm():
 
     def __init__(self, pose):
         self.pos = pose
+        
 
     def reachMap(self):
         # npy file -> array (reach map)
@@ -46,7 +47,7 @@ class Arm():
 
         return map_left, map_right
 
-    def score(self, map, pos):
+    def score(self, map, pos, left_right):
         # reach map,poses -> list of scores
         list_score = []
         for p in pos:
@@ -64,15 +65,54 @@ class Arm():
 
             list_score.append(map[inds_min_dist[inds_min_rota], 7])
 
-            x = np.argwhere(map[:,0]==round(pose[0],))
-            y = np.argwhere(map[:,1]==pose[1])
-            z = np.argwhere(map[:,2]==pose[2])
-            print(x,y,z)
+            # find the input poses in the map
+            # x = self.decimal_2(int(((p[0] - (map[0,0])) / 0.05))*0.05 -map[0,0])
+            # if left_right == "left":
+            #     y = self.decimal_2(int(((p[1] - (map[0,1])) / 0.05))*0.05 -map[0,1])
+            # else:
+            #     y = self.decimal_2(int(((p[1] - (map[0,2])) / 0.05))*0.05 + map[0,2])
+            # z = self.decimal_2(int(((p[2] - (0.33)) / 0.05))*0.05 + 0.33)
 
-        print("x:",np.min(map[:,0]),"~",np.max(map[:,0]))
-        print("y:",np.min(map[:,1]),"~",np.max(map[:,1]))
-        print("z:",np.min(map[:,2]),"~",np.max(map[:,2]))
-        print("pos:",pos.reshape(-1)[0:3])
+            # dis = 0.05
+            # p_r = np.round(p,1)
+            # ind_x = np.argwhere(map[:,0]==p_r[0])[:,0]
+            # ind_y = np.argwhere(map[ind_x,1]==p_r[1])[:,0]
+            # ind_z = np.argwhere(map[ind_x,:][ind_y,2]==p_r[2])[:,0]
+            # ind_pos = ind_x[ind_y][ind_z]
+            # print(map.shape)
+            # print(ind_pos.shape)
+            # rad = 3.14/8
+            # ind_rx = np.argwhere(map_pos[:,3]-p[3]<rad)[:,0]
+            # ind_ry = np.argwhere(map_pos[ind_rx,4]-p[4]<rad)[:,0]
+            # ind_rz = np.argwhere(map_pos[ind_rx[ind_ry],5]-p[5]<rad)[:,0]
+            # map_rot = map_pos[ind_rx[ind_ry][ind_rz]]  
+            
+            # Define size of each voxel                
+            min_x, max_x,  = (map[0,0],map[-1,0])
+            min_y, max_y,  = (map[0,1],map[-1,1])
+            min_z, max_z,  = (map[0,2],map[-1,2])
+            min_roll, max_roll,  = (map[0,3],map[-1,3])
+            min_pitch, max_pitch,  = (map[0,4],map[-1,4])
+            min_yaw, max_yaw,  = (map[0,5],map[-1,5])
+            xyz_bins = 0.05
+            rpy_bins = 3.14/8
+
+            x_size = (max_x - min_x) / xyz_bins
+            y_size = (max_y - min_y) / xyz_bins
+            z_size = (max_z - min_z) / xyz_bins
+            roll_size = (max_roll - min_roll) / rpy_bins
+            pitch_size = (max_pitch - min_pitch) / rpy_bins
+            yaw_size = (max_yaw - min_yaw) / rpy_bins
+            
+            x_idx = int((p[0] - min_x) / x_size)
+            y_idx = int((p[1] - min_y) / y_size)
+            z_idx = int((p[2] - min_z) / z_size)
+            roll_idx = int((p[3] - min_roll) / roll_size)
+            pitch_idx = int((p[4] - min_pitch) / pitch_size)
+            yaw_idx = int((p[5] - min_yaw) / yaw_size)
+            print(x_idx,roll_idx)
+
+
         print("-----------------------------------------")
 
         return list_score
@@ -95,9 +135,8 @@ class Arm():
 
         start = timeit.default_timer()
 
-        list_score_l = self.score(map_left,
-                                  self.pos)  # minmal distance and index
-        list_score_r = self.score(map_right, self.pos)
+        list_score_l = self.score(map_left, self.pos, "left")
+        list_score_r = self.score(map_right, self.pos, "right")
 
         end = timeit.default_timer()
         print('Running time of get scores: %s Seconds' % (end - start))
@@ -116,12 +155,13 @@ class Arm():
 
 
 if __name__ == '__main__':
-    x = -0.9 + 1.7 * (np.random.random())  # x: -0.92499995 ~ 0.875
-    y = -0.3 + 1.4 * (np.random.random())  # y: -0.325 ~ 1.125
-    z = 0.425 + 0.1 * (np.random.random())  # z: 0.425 ~ 0.52500004
-    rx = (-1 + 2 * random.random()) * 3
-    ry = (-1 + 2 * np.random.random()) * 1.4
-    rz = (-1 + 2 * random.random()) * 3
+    # x = -0.48 + 0.95 * (np.random.random())  # x: -0.48 ~ 0.47
+    # y = -0.32 + 0.64 * (np.random.random())  # y: -0.32 ~ 0.32
+    # z = 0.33 + 1 * (np.random.random())  # z: 0.33 ~ 0.68
+    # rx = (-1 + 2 * random.random()) * 3
+    # ry = (-1 + 2 * np.random.random()) * 1.4
+    # rz = (-1 + 2 * random.random()) * 3
+    x,y,z,rx,ry,rz = (0.1,0.1,0.48, 0.1,0.15,0.21)
     pose1 = np.array(([[x, y, z, rx, ry, rz]]))
     pose2 = np.array(([[x, y, z, rx, ry, rz], [x, y, z, rx, ry, rz],
                        [x, y, z, rx, ry, rz]]))

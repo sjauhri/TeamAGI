@@ -42,22 +42,25 @@ def clip_map_axes(map, xyz, boundary):
     inds_z2 = np.argwhere(map_cl_z1[:, 2] > (xyz[2] - boundary[2])).reshape(-1)
     map_cl_z2 = map_cl_y2[inds_z1[inds_z2], :]
 
+    map_cl = map_cl_z2
+    # map_cl[:, :-2] = np.ceil(map_cl[:, :-2] * 100) / 100
+
     print("map shape:", map.shape)
 
-    print("x min:", np.min(map[:,0]), "->", np.min(map_cl_x2[:, 0]))
-    print("x max:", np.max(map[:,0]), "->", np.max(map_cl_x2[:, 0]))
-    print(map_cl_x2.shape)
+    # print("x min:", np.min(map[:,0]), "->", np.min(map_cl_x2[:, 0]))
+    # print("x max:", np.max(map[:,0]), "->", np.max(map_cl_x2[:, 0]))
+    # print(map_cl_x2.shape)
 
-    print("y min:", np.min(map[:, 1]), "->", np.min(map_cl_y2[:, 1]))
-    print("y max:", np.max(map[:, 1]), "->", np.max(map_cl_y2[:, 1]))
-    print(map_cl_y2.shape)
+    # print("y min:", np.min(map[:, 1]), "->", np.min(map_cl_y2[:, 1]))
+    # print("y max:", np.max(map[:, 1]), "->", np.max(map_cl_y2[:, 1]))
+    # print(map_cl_y2.shape)
 
-    print("z min:", np.min(map[:,2]), "->", np.min(map_cl_z2[:, 2]))
-    print("z max:", np.max(map[:,2]), "->", np.max(map_cl_z2[:, 2]))
-    print(map_cl_z2.shape)
+    # print("z min:", np.min(map[:,2]), "->", np.min(map_cl_z2[:, 2]))
+    # print("z max:", np.max(map[:,2]), "->", np.max(map_cl_z2[:, 2]))
+    print("clipped map shape", map_cl.shape)
     print("---------------------")
 
-    return map_cl_z2
+    return map_cl
 
 
 def clip_maps(xyz, boundary):
@@ -72,20 +75,22 @@ def clip_maps(xyz, boundary):
 
     map_l_cliped = map_clip_l
     map_r_cliped = map_clip_r
-    path_maps_6D_p2_aboveTable_l = "/home/qiao/Proj_Robman/maps/maps_6D_p2_clipped/reach_map_6D_left_clipped.pkl"
-    path_maps_6D_p2_aboveTable_r = "/home/qiao/Proj_Robman/maps/maps_6D_p2_clipped/reach_map_6D_right_clipped.pkl"
+    path_reach_map_6D_left_clipped = "/home/qiao/Proj_Robman/maps/maps_6D_p2_clipped/reach_map_6D_left_clipped.pkl"
+    path_reach_map_6D_right_clipped = "/home/qiao/Proj_Robman/maps/maps_6D_p2_clipped/reach_map_6D_right_clipped.pkl"
     pickle.dump(map_l_cliped,
-                open(path_maps_6D_p2_aboveTable_l, "wb"),
+                open(path_reach_map_6D_left_clipped, "wb"),
                 protocol=2)
     pickle.dump(map_r_cliped,
-                open(path_maps_6D_p2_aboveTable_r, "wb"),
+                open(path_reach_map_6D_right_clipped, "wb"),
                 protocol=2)
 
 
 if __name__ == '__main__':
     # pkl_p3TOp2()S
     cube = 0.045
-    xyz = [0, 0, 0.45+0.03]  
-    boundary = [(0.75+0.03)/2 + 0.1, (0.75+0.03)/2 + 0.1, 0.2]  # redundant boundary for z axis
+    xyz = [0, 0, 0.45 + 0.03]
+    boundary = [(0.75 + 0.03) / 2 + 0.1, (0.75 + 0.03) / 2 + 0.1,
+                0.2]  # redundant boundary for axes
+    # left: x:-
 
     clip_maps(xyz, boundary)
