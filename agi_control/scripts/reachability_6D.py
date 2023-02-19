@@ -10,30 +10,38 @@ Note: map files in the map folder need to change permissions (chmod a+x file)
 import os
 import numpy as np
 import random
-import pickle
+# import pickle
+import cPickle as pickle
 import timeit
 
 
-def init_map():
-    # npy file -> array (reach map)
-    # search the path of maps folder
-    path_curr = os.getcwd()
-    path_pre = os.path.abspath(os.path.dirname(path_curr))
-    path_pre_pre = os.path.abspath(os.path.dirname(path_pre))
-    if os.path.exists(os.path.join(path_curr, 'maps')):
-        path_maps = path_curr
-    elif os.path.exists(os.path.join(path_pre, 'maps')):
-        path_maps = path_pre
-    else:
-        path_maps = path_pre_pre
-    # load the maps
-    path_map_left = os.path.join(path_maps, \
-                                'maps/reach_map_6D_left_clipped.pkl')
-    path_map_right = os.path.join(path_maps, \
-                                'maps/reach_map_6D_right_clipped.pkl')
-    map_left = pickle.load(open(path_map_left, "rb"))
-    map_right = pickle.load(open(path_map_right, "rb"))
+def find_maps_folder():
+    # Search in current directory and upper three levels
+    for i in range(4):
+        parent_dirs = os.path.join(*([os.pardir] * i) + [''])
+        maps_path = os.path.join(os.getcwd(), parent_dirs, "maps")
+        if os.path.exists(maps_path):
+            return maps_path
 
+    # Search in lower three levels
+    for dirpath, dirnames, filenames in os.walk("."):
+        if "maps" in dirnames:
+            return os.path.join(dirpath, "maps")
+
+    # If maps folder is not found, return path "/src/TeamAGI/agi_control/maps"
+    return os.path.join(os.getcwd(), "src", "TeamAGI", "agi_control", "maps")
+
+
+def load_maps():
+    maps_folder = find_maps_folder()
+    map_left, map_right = None, None
+    for root, dirs, files in os.walk(maps_folder):
+        if "map_left.pkl" in files:
+            with open(os.path.join(root, "map_left.pkl"), "rb") as f:
+                map_left = pickle.load(f)
+        if "map_right.pkl" in files:
+            with open(os.path.join(root, "map_right.pkl"), "rb") as f:
+                map_right = pickle.load(f)
     return [map_left, map_right]
 
 
@@ -43,33 +51,6 @@ class Arm():
         self.pos = pose
         self.map_l = map_l
         self.map_r = map_r
-
-    # def reachMap(self):
-    #     # npy file -> array (reach map)
-    #     start = timeit.default_timer()
-
-    #     # search the path of maps folder
-    #     path_curr = os.getcwd()
-    #     path_pre = os.path.abspath(os.path.dirname(path_curr))
-    #     path_pre_pre = os.path.abspath(os.path.dirname(path_pre))
-    #     if os.path.exists(os.path.join(path_curr, 'maps')):
-    #         path_maps = path_curr
-    #     elif os.path.exists(os.path.join(path_pre, 'maps')):
-    #         path_maps = path_pre
-    #     else:
-    #         path_maps = path_pre_pre
-    #     # load the maps
-    #     path_map_left = os.path.join(path_maps, \
-    #                                 'maps/reach_map_6D_left_clipped.pkl')
-    #     path_map_right = os.path.join(path_maps, \
-    #                                 'maps/reach_map_6D_right_clipped.pkl')
-    #     map_left = pickle.load(open(path_map_left, "rb"))
-    #     map_right = pickle.load(open(path_map_right, "rb"))
-
-    #     end = timeit.default_timer()
-    #     print('Running time of load map: %s Seconds' % (end - start))
-
-    #     return map_left, map_right
 
     def score(self, map, pos, left_right):
         # reach map,poses -> list of scores
@@ -178,7 +159,7 @@ if __name__ == '__main__':
     pose1 = np.array(([[x, y, z, rx, ry, rz]]))
     pose2 = np.array(([[x, y, z, rx, ry, rz], [x, y, z, rx, ry, rz],
                        [x, y, z, rx, ry, rz]]))
-    maps = init_map()
+    maps = load_maps()
 
     print("shape of input poses:", pose1.shape)
     arm = Arm(pose1, maps[0], maps[1])

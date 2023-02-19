@@ -1,153 +1,159 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-"""This behavior is used to get the scene blocks from the scene and store them in the blackboard."""
+'''
+According to the subscribed '/cube_pose' topic, 
+judge the reachability of the left and right hands, 
 
-import py_trees
-import rospy
-from geometry_msgs.msg import PoseStamped
-import py_trees.console as console
-from py_trees.blackboard import Blackboard
-from moveit_msgs.srv import GetPlanningScene
-import sys
+Note: map files in the map folder need to change permissions (chmod a+x file)
+'''
+
+import os
 import numpy as np
-sys.path.append('..')
-from reachability_6D import Arm, init_map
+import random
+# import pickle
+import cPickle as pickle
 import timeit
 
 
-class GetSceneBlocks(py_trees.behaviour.Behaviour):
-    """
-    GetSceneBlocks is a behavior that retrieves the collision objects of the planning scene, filters the objects
-    to select only the ones that have an id that starts with 'box', and stores them in the blackboard.
-    """
-
-    def __init__(self, name="GetSceneBlocks"):
-        """
-        Initialize the behavior.
-
-        Args:
-            name (str): The name of the behavior
-        """
-        super(GetSceneBlocks, self).__init__(name=name)
-        self.blackboard = Blackboard()
-
-        self.scene_srv = rospy.ServiceProxy("/get_planning_scene",
-                                            GetPlanningScene)
-        self.scene_srv.wait_for_service()
-
-    def update(self):
-        """
-        Retrieve the collision objects from the planning scene, filter them to select only the ones that have an id that starts with 'box',
-        and store them in the blackboard.
-
-        Returns:
-            py_trees.common.Status.SUCCESS
-        """
-        scene = self.scene_srv().scene.world.collision_objects
-        blocks = [obj for obj in scene if obj.id.startswith("box")]
-        stack_blocks = self.blackboard.blocks_in_stack
-        # Remove the blocks that are already in the stack
-        if len(stack_blocks) > 0:
-            blocks = [
-                block for block in blocks if block.id not in
-                [stack_block.id for stack_block in stack_blocks]
-            ]
-
-        self.blackboard.scene_blocks = blocks
-
-        return py_trees.common.Status.SUCCESS
+def find_maps_folder():
+    for i in range(4):
+        parent_dirs = os.path.join(*([os.pardir] * i) + [''])
+        maps_path = os.path.join(os.getcwd(), parent_dirs, "maps")
+        if os.path.exists(maps_path):
+            return maps_path
+    raise ValueError(
+        "Could not find maps folder in current path or upper three levels")
 
 
-class PopNextBlock(py_trees.behaviour.Behaviour):
+def load_maps():
+    maps_folder = find_maps_folder()
+    map_left, map_right = None, None
+    for root, dirs, files in os.walk(maps_folder):
+        if "map_left.pkl" in files:
+            with open(os.path.join(root, "map_left.pkl"), "rb") as f:
+                map_left = pickle.load(f)
+        if "map_right.pkl" in files:
+            with open(os.path.join(root, "map_right.pkl"), "rb") as f:
+                map_right = pickle.load(f)
+    return [map_left, map_right]
 
-    def __init__(self, name="PopNextBlock"):
-        """Initialize the behavior."""
-        super(PopNextBlock, self).__init__(name=name)
-        self.blackboard = Blackboard()
 
-    def update(self):
-        """Pop the next block from the scene blocks list and store it in the blackboard."""
-        if self.blackboard.scene_blocks:
-            self.blackboard.next_block = self.blackboard.scene_blocks.pop()
-            console.loginfo("Poped block: {}".format(
-                self.blackboard.next_block.id))
+class Arm():
 
-            return py_trees.common.Status.SUCCESS
+    def __init__(self, pose, map_l, map_r):
+        self.pos = pose
+        self.map_l = map_l
+        self.map_r = map_r
+
+    def score(self, map, pos, left_right):
+        # reach map,poses -> list of scores
+        list_score = []
+        for p in pos:
+
+            # Voxelize the pose
+            min_x, max_x, = (map[0, 0], map[-1, 0])
+            min_y, max_y, = (map[0, 1], map[-1, 1])
+            min_z, max_z, = (map[0, 2], map[-1, 2])
+            min_roll, max_roll, = (map[0, 3], map[-1, 3])
+            min_pitch, max_pitch, = (map[0, 4], map[-1, 4])
+            min_yaw, max_yaw, = (map[0, 5], map[-1, 5])
+            cartesian_res = 0.05
+            angular_res = np.pi / 8
+            # print("min_x, max_x:", min_x,"~", max_x)
+            # print("min_y, max_y:", min_y,"~", max_y)
+            # print("min_z, max_z:", min_z,"~", max_z)
+            # print("min_roll, max_roll:", min_roll,"~", max_roll)
+            # print("min_pitch, max_pitch:", min_pitch,"~", max_pitch)
+            # print("min_yaw, max_yaw:",min_yaw,"~", max_yaw)
+            # print(np.max(map[:,5]))
+
+            x_bins = np.ceil((max_x - min_x) / cartesian_res)
+            y_bins = np.ceil((max_y - min_y) / cartesian_res)
+            z_bins = np.ceil((max_z - min_z) / cartesian_res)
+            roll_bins = np.ceil((max_roll - min_roll) / angular_res)
+            pitch_bins = np.ceil((max_pitch - min_pitch) / angular_res)
+            yaw_bins = np.ceil((max_yaw - min_yaw) / angular_res)
+
+            # Define the offset values for indexing the map
+            x_ind_offset = y_bins * z_bins * roll_bins * pitch_bins * yaw_bins
+            y_ind_offset = z_bins * roll_bins * pitch_bins * yaw_bins
+            z_ind_offset = roll_bins * pitch_bins * yaw_bins
+            roll_ind_offset = pitch_bins * yaw_bins
+            pitch_ind_offset = yaw_bins
+            yaw_ind_offset = 1
+
+            # Convert the input pose to voxel coordinates
+            x_idx = int(np.floor(p[0] / (cartesian_res / x_bins)))
+            y_idx = int(np.floor(p[1] / (cartesian_res / y_bins)))
+            z_idx = int(np.floor(p[2] / (cartesian_res / z_bins)))
+            roll_idx = int(np.floor(
+                (p[3] + np.pi) / (angular_res / roll_bins)))
+            pitch_idx = int(
+                np.floor((p[4] + np.pi) / (angular_res / pitch_bins)))
+            yaw_idx = int(np.floor((p[5] + np.pi) / (angular_res / yaw_bins)))
+
+            # Compute the index in the reachability map array
+            map_idx = x_idx * x_ind_offset + y_idx * y_ind_offset + z_idx * z_ind_offset + roll_idx  \
+            * roll_ind_offset + pitch_idx * pitch_ind_offset + yaw_idx * yaw_ind_offset
+
+            list_score.append(map[int(map_idx), -1])
+        #   print(map_idx)
+        # print("-----------------------------------------")
+
+        return list_score
+
+    def selectArm(self, score_l, score_r):
+        if score_l == 0 and score_r == 0:
+            # print("the inputed pose isn't in the reach map")
+            return ""
+        elif score_l > score_r:
+            # print("left arm")
+            return "left"
         else:
-            return py_trees.common.Status.FAILURE
+            # print("right arm")
+            return "right"
 
+    def getArm(self):
+        # better reachability score -> select arm
+        # map_left, map_right = self.reachMap()
+        map_left = self.map_l
+        map_right = self.map_r
+        list_arm = []
 
-class GetNextStackLocation(py_trees.behaviour.Behaviour):
+        start = timeit.default_timer()
 
-    def __init__(self, name="GetNextStackLocation"):
-        """Initialize the behavior."""
-        super(GetNextStackLocation, self).__init__(name=name)
-        self.blackboard = Blackboard()
-        self.blackboard.blocks_in_stack = []
-        # the reach map is only initialezed once
-        if GetNextStackLocation.maps is None:
-            GetNextStackLocation.maps = init_map()
-        self.map_list = GetNextStackLocation.maps
+        list_score_l = self.score(map_left, self.pos, "left")
+        list_score_r = self.score(map_right, self.pos, "right")
 
-    def initialise(self):
-        """Initialize the behavior."""
-        self.blackboard.next_stack_location = None
-    
-    def select_arm(self):
-        # pose should in form np.array(n,6)
-        # pose(1,6) -> single string, pose(n,6),n>=2 -> list of strings
-        pose = np.array(([[loc.pose.position.x,loc.pose.position.y,loc.pose.position.z,\
-                        loc.pose.orientation.x,loc.pose.orientation.y,loc.pose.orientation.z]]))
-        arm = Arm(pose, self.map_list[0], self.map_list[0])
-        return arm.getArm()
+        end = timeit.default_timer()
+        print('Running time of get scores: %s Seconds' % (end - start))
 
-    def update(self):
-        """Get the next stack location from the scene and store it in the blackboard."""
-        loc = PoseStamped()
-        loc.header.frame_id = "base_footprint"
-        loc.pose.position.x = 0.6
-        loc.pose.position.y = 0.75 / 2
-        loc.pose.position.z = 0.45 + 0.045 * len(
-            self.blackboard.blocks_in_stack) + 0.01
-        loc.pose.orientation.w = 1.0
-        self.blackboard.next_stack_location = loc
-        
-        # to do: need to set accurate roll,pitch,yaw for robot grabs
-        loc.pose.orientation.x = 0.1
-        loc.pose.orientation.y = -0.1
-        loc.pose.orientation.z = 0.1
-        
-        return py_trees.common.Status.SUCCESS
+        for i in range(len(list_score_l)):
+            list_arm.append(self.selectArm(
+                list_score_l[i],
+                list_score_r[i]))  # unreachable="", left="left", right="right"
+        print("score_l:", list_score_l)
+        print("score_r", list_score_r)
+        # print(arm)
+        if len(list_arm) == 1:
+            return list_arm[0]
+        else:
+            return list_arm
 
-
-class ResetNextBlock(py_trees.behaviour.Behaviour):
-
-    def __init__(self, name="ResetNextBlock"):
-        """Initialize the behavior."""
-        super(ResetNextBlock, self).__init__(name=name)
-        self.blackboard = Blackboard()
-
-    def update(self):
-        """Reset the next block in the blackboard."""
-        self.blackboard.next_block = None
-        return py_trees.common.Status.SUCCESS
 
 if __name__ == '__main__':
-    x = 0.6 / 2
-    y = 0.75 / 2 / 2
-    z = 0.45 + 0.045
-    ox = 0.1
-    oy = -0.1
-    oz = 0.1
+    # x = -0.48 + 0.95 * (np.random.random())  # x: -0.48 ~ 0.47
+    # y = -0.32 + 0.64 * (np.random.random())  # y: -0.32 ~ 0.32
+    # z = 0.33 + 1 * (np.random.random())  # z: 0.33 ~ 0.68
+    # rx = (-1 + 2 * random.random()) * 3
+    # ry = (-1 + 2 * np.random.random()) * 1.4
+    # rz = (-1 + 2 * random.random()) * 3
+    x, y, z, rx, ry, rz = (0.2, 0.2, 0.48, 0.1, 0.15, 0.21)
+    pose1 = np.array(([[x, y, z, rx, ry, rz]]))
+    pose2 = np.array(([[x, y, z, rx, ry, rz], [x, y, z, rx, ry, rz],
+                       [x, y, z, rx, ry, rz]]))
+    maps = load_maps()
 
-    start = timeit.default_timer()
-    get1 = GetNextStackLocation()
-    arm = get1.select_arm()
-    end = timeit.default_timer()
-    print('Running time of select arm1: %s Seconds' % (end - start))
-
-    start = timeit.default_timer()
-    get2 = GetNextStackLocation()
-    arm = get2.select_arm()
-    end = timeit.default_timer()
-    print('Running time of select arm2: %s Seconds' % (end - start))
+    print("shape of input poses:", pose1.shape)
+    arm = Arm(pose1, maps[0], maps[1])
+    print(arm.getArm())
