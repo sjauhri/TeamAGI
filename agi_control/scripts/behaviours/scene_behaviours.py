@@ -11,7 +11,8 @@ from moveit_msgs.srv import GetPlanningScene
 import sys
 import numpy as np
 sys.path.append('..')
-from reachability_6D import Arm
+from reachability_6D import Arm, init_map
+import timeit
 
 
 class GetSceneBlocks(py_trees.behaviour.Behaviour):
@@ -83,10 +84,22 @@ class GetNextStackLocation(py_trees.behaviour.Behaviour):
         super(GetNextStackLocation, self).__init__(name=name)
         self.blackboard = Blackboard()
         self.blackboard.blocks_in_stack = []
+        # the reach map is only initialezed once
+        if GetNextStackLocation.maps is None:
+            GetNextStackLocation.maps = init_map()
+        self.map_list = GetNextStackLocation.maps
 
     def initialise(self):
         """Initialize the behavior."""
         self.blackboard.next_stack_location = None
+    
+    def select_arm(self):
+        # pose should in form np.array(n,6)
+        # pose(1,6) -> single string, pose(n,6),n>=2 -> list of strings
+        pose = np.array(([[loc.pose.position.x,loc.pose.position.y,loc.pose.position.z,\
+                        loc.pose.orientation.x,loc.pose.orientation.y,loc.pose.orientation.z]]))
+        arm = Arm(pose, self.map_list[0], self.map_list[0])
+        return arm.getArm()
 
     def update(self):
         """Get the next stack location from the scene and store it in the blackboard."""
@@ -99,16 +112,10 @@ class GetNextStackLocation(py_trees.behaviour.Behaviour):
         loc.pose.orientation.w = 1.0
         self.blackboard.next_stack_location = loc
         
-        # selsect arm
-        loc.pose.orientation.x = 1
-        loc.pose.orientation.y = 0
-        loc.pose.orientation.z = -1
-        # pose should in form np.array(n,6)
-        # pose(1,6) -> single string, pose(n,6),n>=2 -> list of strings
-        pose = np.array(([[loc.pose.position.x,loc.pose.position.y,loc.pose.position.z,\
-                  loc.pose.orientation.x,loc.pose.orientation.y,loc.pose.orientation.z]]))
-        arm = Arm(pose)        
-        self.left_right = arm.getArm() 
+        # to do: need to set accurate roll,pitch,yaw for robot grabs
+        loc.pose.orientation.x = 0.1
+        loc.pose.orientation.y = -0.1
+        loc.pose.orientation.z = 0.1
         
         return py_trees.common.Status.SUCCESS
 
@@ -124,3 +131,23 @@ class ResetNextBlock(py_trees.behaviour.Behaviour):
         """Reset the next block in the blackboard."""
         self.blackboard.next_block = None
         return py_trees.common.Status.SUCCESS
+
+if __name__ == '__main__':
+    x = 0.6 / 2
+    y = 0.75 / 2 / 2
+    z = 0.45 + 0.045
+    ox = 0.1
+    oy = -0.1
+    oz = 0.1
+
+    start = timeit.default_timer()
+    get1 = GetNextStackLocation()
+    arm = get1.select_arm()
+    end = timeit.default_timer()
+    print('Running time of select arm1: %s Seconds' % (end - start))
+
+    start = timeit.default_timer()
+    get2 = GetNextStackLocation()
+    arm = get2.select_arm()
+    end = timeit.default_timer()
+    print('Running time of select arm2: %s Seconds' % (end - start))

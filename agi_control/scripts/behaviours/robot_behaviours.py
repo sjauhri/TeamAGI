@@ -39,6 +39,10 @@ class PickBlock(py_trees_ros.actions.ActionClient):
     def initialise(self):
         self.action_goal = self.get_pick_up_goal()
         super(PickBlock, self).initialise()
+    
+    def select_arm(self):
+        getNextStackLocation = GetNextStackLocation()
+        return getNextStackLocation.select_arm()
 
     def get_pick_up_goal(self):
         """Generates the goal for the action client
@@ -49,15 +53,10 @@ class PickBlock(py_trees_ros.actions.ActionClient):
         console.loginfo("Getting pick up goal")
         blackboard = py_trees.blackboard.Blackboard()
         pick_up_goal = PickUpObjectGoal()
-        # pick_up_goal.left_right = 'left'
         
-        # select arm
-        getNextStackLocation = GetNextStackLocation()
-        try:
-            pick_up_goal.left_right = getNextStackLocation.left_right
-        except:
-            pick_up_goal.left_right = "left" # If left_right is empty, directly assign the value "left"
-            
+        # pick_up_goal.left_right = 'left'
+        pick_up_goal.left_right = self.select_arm 
+         
         next_block = blackboard.get("next_block")
         if next_block is None:
             pick_up_goal.object_name = ''
