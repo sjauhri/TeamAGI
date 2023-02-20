@@ -122,23 +122,67 @@ class PCLHandler:
         ####
 
 
-
         # get pose array
         interest_point_list = [] 
         cube_poses=PoseArray()
+        color_list = []
+        
         for i in range(n_clusters):
-             clustered_points = cloud_plane.extract(cluster_indices[i], negative=False)
-             edge_points, best_point, indices = find_edge(clustered_points,centroids[i])
-             #
-             interest_point_list.append(edge_points)
-             #
-             pose=get_pose(centroids[i],clustered_points[best_point]) 
-             cube_poses.poses.append(pose)
+            clustered_points = cloud_plane.extract(cluster_indices[i], negative=False)
+            edge_points, best_point, indices = find_edge(clustered_points, centroids[i])
+            #
+            interest_point_list.append(edge_points)
+            #
+            pose=get_pose(centroids[i],clustered_points[best_point]) 
+            cube_poses.poses.append(pose)
+
+            #########################################
+            # color detection for pointcloud-cluster
+            clustered_array = clustered_points.to_array()
+            r_all = 0
+            g_all = 0
+            b_all = 0
+            for data in clustered_array:
+                res = "not found"
+                s = struct.pack('>f', data[3])
+                k = struct.unpack('>l', s)[0]
+                pack = ctypes.c_uint32(k).value
+
+                r = (pack & 0x00FF0000) >> 16
+                g = (pack & 0x0000FF00) >> 8
+                b = (pack & 0x000000FF)
+                color_min = min([r, g, b])
+
+                r_all += r - color_min
+                g_all += g - color_min
+                b_all += b - color_min
+
+            # decides color on maximum r value
+            # TODO: add threshold as redish planes are not real red!
+            if r_all > g_all:
+                if r_all > b_all:
+                    res = "red"
+                else:
+                    res = "blue"
+            else:  # g_all > r_all
+                if g_all > b_all:
+                    res = "green"
+                else:
+                    res = "blue"
+
+            color_list.append(res)
+            # print(i)
+
+            ########### end of loop
+        print(color_list)
+
         cube_poses.header.frame_id = "base_footprint"
         cube_poses.header.stamp = rospy.Time.now()     
-        
+            
+
+            
         #
-        print(interest_point_list)
+        # print(interest_point_list)
         #int_oint = interest_point_list[0]
         if False:
             self.pub1_edge.publish(self.pcl_to_ros(interest_point_list[0]))
