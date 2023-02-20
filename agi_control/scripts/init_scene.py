@@ -86,7 +86,7 @@ if __name__ == "__main__":
     rate = rospy.Rate(10)
     init_scene = InitScene()
     init_scene.clean_scene()
-    #init_scene.create_default_scene()
+    # init_scene.create_default_scene()
     init_scene.create_table()
     while not rospy.is_shutdown():
         init_scene.update_scene()

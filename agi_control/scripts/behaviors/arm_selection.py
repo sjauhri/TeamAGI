@@ -28,8 +28,8 @@ def find_maps_folder():
         if "maps" in dirnames:
             return os.path.join(dirpath, "maps")
 
-    # If maps folder is not found, return path "/src/TeamAGI/agi_control/maps"
-    return os.path.join(os.getcwd(), "src", "TeamAGI", "agi_control", "maps")
+    # If maps folder is not found, return path "/src/TeamAGI/agi_control/scripts/maps"
+    return os.path.join(os.getcwd(), "src", "TeamAGI", "agi_control", "scripts", "maps")
 
 
 def load_maps():
@@ -72,7 +72,7 @@ class Arm():
             # print("min_roll, max_roll:", min_roll,"~", max_roll)
             # print("min_pitch, max_pitch:", min_pitch,"~", max_pitch)
             # print("min_yaw, max_yaw:",min_yaw,"~", max_yaw)
-            # print(np.max(map[:,5]))
+            # print(map[:-5,5])
 
             x_bins = np.ceil((max_x - min_x) / cartesian_res)
             y_bins = np.ceil((max_y - min_y) / cartesian_res)
