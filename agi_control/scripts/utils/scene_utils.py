@@ -21,7 +21,7 @@ from moveit_msgs.srv import GetPlanningScene
 # Ros messages
 from visualization_msgs.msg import Marker
 
-from reachability import Arm
+# from reachability import Arm
 
 
 class SceneUtils():
