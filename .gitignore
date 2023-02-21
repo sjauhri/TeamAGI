@@ -1,0 +1,13 @@
+.vscode/
+.idea/
+build/
+dist/
+
+# Compile files
+**/__pycache__/
+*.pyc
+*.egg-info
+*-metadata
+*.mp4
+
+*.out
