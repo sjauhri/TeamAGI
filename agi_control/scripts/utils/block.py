@@ -233,6 +233,6 @@ class BlockManager():
             id = "box" + str(len(self._blocks))
             self.add_block(id, pose, confidence)
         else:
-            self.update_block(id, pose)
+            self.update_block(id, pose, confidence)
 
         return id

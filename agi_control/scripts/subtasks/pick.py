@@ -10,6 +10,8 @@ from subtasks.subtask import SubtaskGuard
 
 from behaviors.pick_behaviour import PickBehaviour
 
+from utils.robot_utils import get_gripper_status
+
 task_name = "Pick"
 
 blackboard = py_trees.blackboard.Blackboard()
@@ -28,6 +30,12 @@ guard_has_block = py_trees.blackboard.CheckBlackboardVariable(
     variable_name="next_block",
     expected_value='',
     comparison_operator=operator.ne)
+
+guard_gripper_open = py_trees.blackboard.CheckBlackboardVariable(
+    name="Gripper Open",
+    variable_name="gripper_status",
+    expected_value=1,
+    comparison_operator=operator.eq)
 
 #============================================================================
 # Actions
@@ -56,9 +64,15 @@ def create_pick_subtask():
     """
     Create the pick subtask.
     """
+    gripper_status = get_gripper_status('left')
+    blackboard.set("gripper_status", gripper_status)
+
+    guard = SubtaskGuard(name="Guard - Pick")
+    guard.add_guard(guard_has_block)
+    guard.add_guard(guard_gripper_open)
 
     pick_subtask = Subtask(name=task_name,
-                           guard=guard_has_block,
+                           guard=guard,
                            action=action,
                            end_condition=None,
                            recovery=None)

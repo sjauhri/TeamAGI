@@ -76,7 +76,7 @@ def create_get_cube_subtask():
     """
 
     # Create a guard that is composed of multiple guards
-    guard = SubtaskGuard("Guard")
+    guard = SubtaskGuard("Guard - Get Cube")
     guard.add_guard(guard_has_cube)
     guard.add_guard(guard_has_no_scene_cube)
 
