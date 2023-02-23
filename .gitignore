@@ -11,3 +11,4 @@ dist/
 *.mp4
 
 *.out
+*.pyc
