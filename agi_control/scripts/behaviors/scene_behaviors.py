@@ -16,6 +16,9 @@ import py_trees
 import py_trees.console as console
 from py_trees.blackboard import Blackboard
 
+# perseption 
+from agi_vision.msg import PerceptionMSG
+
 # Utils
 from utils.block import BlockManager
 
@@ -72,16 +75,23 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         Returns:
             py_trees.common.Status.SUCCESS
         """
-        cube_detections = self.__get_published_poses()
-        for pose in cube_detections.poses:
+        # cube_detections = self.__get_published_poses()
+        perception_data = self._get_published_perception()
+        
+        # for pose in cube_detections.poses:
+        for i, pose in enumerate(perception_data.pose_array.poses):
             pose_stamp = PoseStamped()
             pose_stamp.header.frame_id = "base_footprint"
             pose_stamp.pose = pose
-            # TODO: Add confidence to the block
-            self.block_manager.manage(pose_stamp, confidence=1.0)
+
+            self.block_manager.manage(pose_stamp,
+                                    confidence=perception_data.confidence[i],
+                                    color=perception_data.color_names[i])
 
         console.loginfo("Found {} cubes in the scene".format(
-            len(cube_detections.poses)))
+            perception_data.size))
+        
+        self.block_manager.print_block_info()
 
         self.__update_contact_objects()
 
@@ -103,6 +113,12 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         """Retrieves the pose published in '/cube_poses' topic."""
         cube_poses = rospy.wait_for_message('/cube_poses', PoseArray)
         return cube_poses
+
+    @staticmethod
+    def _get_published_perception():
+        """Retrieves the pose, color, ... published in '/PerceptionMSG' topic."""
+        perception_data = rospy.wait_for_message('/PerceptionMSG', PerceptionMSG)
+        return perception_data
 
     def __update_contact_objects(self):
 

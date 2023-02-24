@@ -297,10 +297,12 @@ class PCLHandler:
         # self.pub2_pcl2.publish(pcl_clustered)  # edge points 
         self.pub3_pose.publish(cube_poses)  # cube poses 
 
+
         perc_msg = PerceptionMSG()
+        perc_msg.size = len(color_list)
         perc_msg.pose_array = cube_poses
         perc_msg.color_names = color_list
-        perc_msg.size = len(color_list)
+        perc_msg.confidence = [1.0 for i in range(len(color_list))]
         self.pub_perception.publish(perc_msg)
 
 

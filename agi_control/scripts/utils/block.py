@@ -19,10 +19,11 @@ class Block():
         >>> block = Block("box1", PoseStamped())
     """
 
-    def __init__(self, id, pose, confidence):
+    def __init__(self, id, pose, confidence, color=""):
         self._scene = PlanningSceneInterface()
         self._id = id
         self._pose = pose
+        self._color = color
         self._scene.add_box(self._id, self._pose, (0.045, 0.045, 0.045))
         rospy.sleep(0.5)
         self._collision_object = self._scene.get_objects([self._id])[self._id]
@@ -41,6 +42,10 @@ class Block():
     def pose(self):
         return self._pose
 
+    @property
+    def color(self):
+        return self._color
+    
     @property
     def position(self):
         return self._pose.pose.position
@@ -147,13 +152,13 @@ class BlockManager():
     def __init__(self):
         self._blocks = {}
 
-    def add_block(self, id, pose, confidence):
+    def add_block(self, id, pose, confidence, color=""):
         """This function adds a block to the block manager.
         Args:
             id (str): The id of the block
             pose (PoseStamped): The pose of the block
         """
-        self._blocks[id] = Block(id, pose, confidence)
+        self._blocks[id] = Block(id, pose, confidence, color)
 
     def update_block(self, id, pose, confidence):
         """This function updates the pose of a block.
@@ -166,7 +171,7 @@ class BlockManager():
         block._confidence = confidence
         block.update()
 
-    def identify_block(self, pose, threshold=0.05):
+    def identify_block(self, pose, threshold=0.05, color=""):
         """This function identifies the block that is closest to the given pose.
         If no block is close enough, then it returns None.
         Args:
@@ -176,7 +181,13 @@ class BlockManager():
         """
         for block in self._blocks.values():
             if self._is_close(block.pose, pose, threshold):
-                return block.id
+                # checks color of identified block, when a proper one is given 
+                if color not in ["red", "blue", "yellow", "green"] or block.color == color:
+                    print("found")
+                    print(block.id)
+                    print("with color")
+                    print(color)
+                    return block.id
         return None
 
     def _is_close(self, pose1, pose2, threshold):
@@ -223,16 +234,24 @@ class BlockManager():
         else:
             return [self._blocks[id] for id in ids]
 
-    def manage(self, pose, confidence):
+    def manage(self, pose, confidence, color):
         """This function manages the blocks in the scene.
         Args:
             pose (PoseStamped): The pose of the block
         """
-        id = self.identify_block(pose)
+        id = self.identify_block(pose, color=color)
         if id is None:
             id = "box" + str(len(self._blocks))
-            self.add_block(id, pose, confidence)
+            self.add_block(id, pose, confidence, color)
         else:
             self.update_block(id, pose, confidence)
 
         return id
+
+    def print_block_info(self):
+        """ debugging """
+        for key, value in self._blocks.items():
+            print("block: " + str(key))
+            print(value.id)
+            print(value.pose)
+            print(value.color)
