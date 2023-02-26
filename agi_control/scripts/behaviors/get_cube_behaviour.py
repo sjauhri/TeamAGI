@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import rospy
 import pdb
 import py_trees
 from geometry_msgs.msg import PoseStamped
@@ -33,19 +34,21 @@ class StackCubesActionPolicy(ActionPolicy):
 
     def __init__(self):
         super(StackCubesActionPolicy, self).__init__("StackCubesActionPolicy")
-        self._blackboard.cubes_in_stack = []
+        self._blackboard.set("cubes_in_stack", [])
         self._scene_cubes = self._blackboard.get("scene_cubes")
         # Initialize scene cubes properties
         for scene_cube in self._scene_cubes:
             scene_cube.properties["pickable"] = True
             scene_cube.properties["in_stack"] = False
 
+        self.initialize_stack()
+
     def get_target_location(self):
         # Get the current top cube in the cube stack
-        if len(self._blackboard.cubes_in_stack) == 0:
+        if len(self._blackboard.get("cubes_in_stack")) == 0:
             return None
         else:
-            top_cube = self._blackboard.cubes_in_stack[-1]
+            top_cube = self._blackboard.get("cubes_in_stack")[-1]
             target_pose = PoseStamped()
             target_pose.pose.position.x = top_cube.pose.pose.position.x
             target_pose.pose.position.y = top_cube.pose.pose.position.y
@@ -73,6 +76,12 @@ class StackCubesActionPolicy(ActionPolicy):
         else:
             return scene_cubes_pickable[0]
 
+    def initialize_stack(self):
+        # Initialize the stack with the cube having the highest confidence
+        init_cube = self.get_next_cube()
+        self._blackboard.get("cubes_in_stack").append(init_cube)
+        init_cube.properties["in_stack"] = True
+
 
 class GetCubeBehaviour(py_trees.behaviour.Behaviour):
     """Behaviour for getting a cube.
@@ -88,8 +97,9 @@ class GetCubeBehaviour(py_trees.behaviour.Behaviour):
 
         self._blackboard = py_trees.blackboard.Blackboard()
         self._action_policy = StackCubesActionPolicy()
-        self._blackboard.get_cube_policy = self._action_policy
+        self._blackboard.set("get_cube_policy", self._action_policy)
 
+        rospy.logdebug("Initialize GetCubeBehaviour")
         super(GetCubeBehaviour, self).initialise()
 
     def update(self):
@@ -98,5 +108,5 @@ class GetCubeBehaviour(py_trees.behaviour.Behaviour):
         if next_cube is None:
             return py_trees.common.Status.FAILURE
         else:
-            self._blackboard.next_cube = next_cube
+            self._blackboard.set("next_cube", next_cube)
             return py_trees.common.Status.SUCCESS

@@ -15,87 +15,111 @@ from std_msgs.msg import Header
 from geometry_msgs.msg import PoseStamped, PoseArray
 from random import randint
 from std_msgs.msg import String
-from sensor_msgs.msg import Image 
+from sensor_msgs.msg import Image
 # http://docs.ros.org/en/noetic/api/shape_msgs/html/msg/Plane.html
 from shape_msgs.msg import Plane
 from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
 from utils import k_means_clustering, XYZRGB_to_XYZ, find_edge, get_pose
 # https://answers.ros.org/question/59725/publishing-to-a-topic-via-subscriber-callback-function/
 
-
 from agi_vision.msg import PerceptionMSG
 
 
 class PCLHandler:
+
     def __init__(self):
         self.node = rospy.init_node('pcl_handling', anonymous=True)
 
-        self.sub = rospy.Subscriber('/xtion/depth_registered/points', PointCloud2, self.callback)
-        self.pub_pcl_filter = rospy.Publisher('Pointcloud2_filtered', PointCloud2, queue_size=10)
-        self.pub_pcl_planes = rospy.Publisher('Pointcloud2_cube_planes', PointCloud2, queue_size=10)
-        self.pub_pcl_edges = rospy.Publisher('Edge_points', PointCloud2, queue_size=10)
+        self.sub = rospy.Subscriber('/xtion/depth_registered/points',
+                                    PointCloud2, self.callback)
+        self.pub_pcl_filter = rospy.Publisher('Pointcloud2_filtered',
+                                              PointCloud2,
+                                              queue_size=10)
+        self.pub_pcl_planes = rospy.Publisher('Pointcloud2_cube_planes',
+                                              PointCloud2,
+                                              queue_size=10)
+        self.pub_pcl_edges = rospy.Publisher('Edge_points',
+                                             PointCloud2,
+                                             queue_size=10)
 
-        self.pub_perception = rospy.Publisher('PerceptionMSG', PerceptionMSG, queue_size=10)
+        self.pub_perception = rospy.Publisher('PerceptionMSG',
+                                              PerceptionMSG,
+                                              queue_size=10)
 
+        self.pub1_edge = rospy.Publisher('Edge_point1',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub2_edge = rospy.Publisher('Edge_point2',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub3_edge = rospy.Publisher('Edge_point3',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub4_edge = rospy.Publisher('Edge_point4',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub5_edge = rospy.Publisher('Edge_point5',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub6_edge = rospy.Publisher('Edge_point6',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub7_edge = rospy.Publisher('Edge_point7',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub8_edge = rospy.Publisher('Edge_point8',
+                                         PointCloud2,
+                                         queue_size=10)
 
-        self.pub1_edge = rospy.Publisher('Edge_point1', PointCloud2, queue_size=10)
-        self.pub2_edge = rospy.Publisher('Edge_point2', PointCloud2, queue_size=10)
-        self.pub3_edge = rospy.Publisher('Edge_point3', PointCloud2, queue_size=10)
-        self.pub4_edge = rospy.Publisher('Edge_point4', PointCloud2, queue_size=10)
-        self.pub5_edge = rospy.Publisher('Edge_point5', PointCloud2, queue_size=10)
-        self.pub6_edge = rospy.Publisher('Edge_point6', PointCloud2, queue_size=10)
-        self.pub7_edge = rospy.Publisher('Edge_point7', PointCloud2, queue_size=10)
-        self.pub8_edge = rospy.Publisher('Edge_point8', PointCloud2, queue_size=10)
-
-        self.pub3_pose = rospy.Publisher('cube_poses', PoseArray, queue_size=10)
+        self.pub3_pose = rospy.Publisher('cube_poses',
+                                         PoseArray,
+                                         queue_size=10)
         # self.pub_plane = rospy.Publisher('Plane_rk', Plane, queue_size=10)
         self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(1))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         rospy.spin()
 
-     
     def callback(self, data):
         stamp = data.header.stamp
-        # gets pointcloud2 data from node 
+        # gets pointcloud2 data from node
         if not data.is_dense:
             rospy.logwarn('invalid points in Pointcloud!')
         # rospy.loginfo(rospy.get_caller_id() + ('image  width %s and height %s' % (data.width, data.height)))
-        data=self.transform_to_base(data, stamp)  
+        data = self.transform_to_base(data, stamp)
         # for p in pc2.read_points(data, field_names = ("x", "y", "z"), skip_nans=True):
         #     print " x : %f  y: %f  z: %f" %(p[0],p[1],p[2])
 
-        n_clusters_fixed = 8 # TODO make config!
-        
-        
+        n_clusters_fixed = 3  # TODO make config!
+
         pcl_data = self.ros_to_pcl(data)
         fil = pcl_data.make_passthrough_filter()
         fil.set_filter_field_name("z")
         fil.set_filter_limits(0.47, 1.5)
         cloud_filtered = fil.filter()
 
-        # publish filtered cloud 
+        # publish filtered cloud
         self.pub_pcl_filter.publish(self.pcl_to_ros(cloud_filtered))
 
         #pcl_filter = self.extracting_indices(pcl_data)
         #pcl_msg = self.pcl_to_ros(pcl_filter)
         # self.pub_pcl2.publish(pcl_msg)
         # print("starting segmentation")
-        original_size=cloud_filtered.size
+        original_size = cloud_filtered.size
         pcl_seg = pcl.PointCloud_PointXYZRGB()
 
         # remove tabletop plane
-        while(cloud_filtered.size>(original_size*40)/100):
-            indices, plane_coeff = self.segment_pcl(cloud_filtered,pcl.SACMODEL_PLANE)
+        while (cloud_filtered.size > (original_size * 40) / 100):
+            indices, plane_coeff = self.segment_pcl(cloud_filtered,
+                                                    pcl.SACMODEL_PLANE)
             cloud_table = cloud_filtered.extract(indices, negative=False)
-            cloud_filtered = cloud_filtered.extract(indices, negative=True) 
-        
+            cloud_filtered = cloud_filtered.extract(indices, negative=True)
 
-         
         # get cube planes
-        plane_indices=[] 
+        plane_indices = []
         cloud_plane = cloud_filtered
-        indices, plane_coeff = self.segment_pcl(cloud_plane,pcl.SACMODEL_PLANE)
-        cloud_plane = cloud_filtered.extract(indices, negative=False)     
+        indices, plane_coeff = self.segment_pcl(cloud_plane,
+                                                pcl.SACMODEL_PLANE)
+        cloud_plane = cloud_filtered.extract(indices, negative=False)
 
         # find n_cluster!
         find_n_cluster = True
@@ -112,25 +136,26 @@ class PCLHandler:
                 old_n = current_n
 
                 # clustering
-                cluster_indices, centroids = k_means_clustering(np.array(cloud_plane), current_n, 1000)
+                cluster_indices, centroids = k_means_clustering(
+                    np.array(cloud_plane), current_n, 1000)
 
                 for i in range(current_n):
                     # clustered_points = cloud_plane.extract(cluster_indices[i], negative=False)
 
-                    # cluster it so small 
+                    # cluster it so small
                     if len(cluster_indices[i]) < thr_min:
                         print("Cluster is very small!")
 
-                    # cluster is to big, split it up 
+                    # cluster is to big, split it up
                     elif len(cluster_indices[i]) > thr_max:
                         print("Cluster is too big!")
-                        too_much = 0 
-                        current_n +=1
+                        too_much = 0
+                        current_n += 1
                         break
-                        
+
                     # cluster between min and max
                     else:  # len(cluster_indices[i]) < thr_max:
-                    
+
                         # point distance stuff
                         # clustered_points = cloud_plane.extract(cluster_indices[i], negative=False)
                         # best_point, indices = find_edge(clustered_points, centroids[i])
@@ -143,9 +168,10 @@ class PCLHandler:
                         for j in range(i, len(centroids), 1):
                             too_much = 0
                             # print(j)
-                            # dont compare same cluster 
+                            # dont compare same cluster
                             if i != j:
-                                distance = np.linalg.norm(centroids[i][:3]-centroids[j][:3])
+                                distance = np.linalg.norm(centroids[i][:3] -
+                                                          centroids[j][:3])
 
                                 if distance < 0.03:
                                     too_much += 1
@@ -161,8 +187,8 @@ class PCLHandler:
             print("final number of clusters")
             print(n_clusters)
 
-        # Do clustering 
-        clustered_points=cloud_plane
+        # Do clustering
+        clustered_points = cloud_plane
 
         if n_clusters == n_clusters_fixed:
             print("found exact number of clusters!")
@@ -177,48 +203,48 @@ class PCLHandler:
             n_clusters = n_clusters_fixed
             print(n_clusters)
 
-        # white_cloud = self.XYZRGB_to_XYZ(cloud_filtered) 
-        cluster_indices, centroids=k_means_clustering(np.array(cloud_plane),n_clusters,1000)
+        # white_cloud = self.XYZRGB_to_XYZ(cloud_filtered)
+        cluster_indices, centroids = k_means_clustering(
+            np.array(cloud_plane), n_clusters, 1000)
         # cluster_indices=DBSCAN_clustering(np.array(cloud_plane))
         #check clusetered points
         # print("number of clusters")
-        # print(len(cluster_indices)) 
+        # print(len(cluster_indices))
 
-
-        
-        
         # try to make it smart
         if False:
             edge_point_list = []
             for i, cent in enumerate(centroids):
-                clustered_points = cloud_plane.extract(cluster_indices[i], negative=False)
+                clustered_points = cloud_plane.extract(cluster_indices[i],
+                                                       negative=False)
                 best_point, indices = find_edge(clustered_points, cent)
                 edge_point_list.extend(indices)
             print(edge_point_list)
             edge_points = cloud_plane.extract(edge_point_list, negative=False)
             print("edge point")
-            print(edge_points)    
+            print(edge_points)
             self.pub_pcl_edges.publish(self.pcl_to_ros(edge_points))
 
         # clustered_points = cloud_plane.extract(cluster_indices[1], negative=False)
         # edge_points,best_point, indices=find_edge(clustered_points,centroids[1])
-        
+
         ####
 
-
         # get pose array
-        interest_point_list = [] 
-        cube_poses=PoseArray()
+        interest_point_list = []
+        cube_poses = PoseArray()
         color_list = []
-        
+
         for i in range(n_clusters):
-            clustered_points = cloud_plane.extract(cluster_indices[i], negative=False)
+            clustered_points = cloud_plane.extract(cluster_indices[i],
+                                                   negative=False)
             print(clustered_points)
-            edge_points, best_point, indices = find_edge(clustered_points, centroids[i])
+            edge_points, best_point, indices = find_edge(
+                clustered_points, centroids[i])
             #
             interest_point_list.append(edge_points)
             #
-            pose=get_pose(centroids[i],clustered_points[best_point]) 
+            pose = get_pose(centroids[i], clustered_points[best_point])
             cube_poses.poses.append(pose)
 
             #########################################
@@ -239,14 +265,14 @@ class PCLHandler:
                 g = (pack & 0x0000FF00) >> 8
                 b = (pack & 0x000000FF)
 
-                if r > (b+50) and g > (b+50):
-                    y_all +=1
+                if r > (b + 50) and g > (b + 50):
+                    y_all += 1
                 else:
-                    if r > (g+50) and r > (b+50):
+                    if r > (g + 50) and r > (b + 50):
                         r_all += 1
-                    if g > (r+30) and g > (b+10):
+                    if g > (r + 30) and g > (b + 10):
                         g_all += 1
-                    if b > (r+25):
+                    if b > (r + 25):
                         b_all += 1
 
             # print(r_all)
@@ -270,10 +296,8 @@ class PCLHandler:
         print(color_list)
 
         cube_poses.header.frame_id = "base_footprint"
-        cube_poses.header.stamp = rospy.Time.now()     
-            
+        cube_poses.header.stamp = rospy.Time.now()
 
-            
         #
         # print(interest_point_list)
         #int_oint = interest_point_list[0]
@@ -290,13 +314,12 @@ class PCLHandler:
 
         # publishing
         pcl_seg_msg = self.pcl_to_ros(cloud_plane)
-        pcl_clustered=self.pcl_to_ros(edge_points)
-       
-        # pcl_seg_transf = self.transform_to_base(pcl_seg_msg, stamp)
-        self.pub_pcl_planes.publish(pcl_seg_msg)  # cube planes 
-        # self.pub2_pcl2.publish(pcl_clustered)  # edge points 
-        self.pub3_pose.publish(cube_poses)  # cube poses 
+        pcl_clustered = self.pcl_to_ros(edge_points)
 
+        # pcl_seg_transf = self.transform_to_base(pcl_seg_msg, stamp)
+        self.pub_pcl_planes.publish(pcl_seg_msg)  # cube planes
+        # self.pub2_pcl2.publish(pcl_clustered)  # edge points
+        self.pub3_pose.publish(cube_poses)  # cube poses
 
         perc_msg = PerceptionMSG()
         perc_msg.size = len(color_list)
@@ -305,38 +328,37 @@ class PCLHandler:
         perc_msg.confidence = [1.0 for i in range(len(color_list))]
         self.pub_perception.publish(perc_msg)
 
-
         # self.pub2_pcl2.publish(pcl_seg_transf)
         # self.pub_pcl2.publish(pcl_seg_msg)
 
     def transform_to_base(self, pc_ros, stamp):
 
-        lookup_time = rospy.get_rostime() 
+        lookup_time = rospy.get_rostime()
         # end_time = stamp + rospy.Duration(10)
         target_frame = "base_footprint"  # base_link
         source_frame = "xtion_rgb_optical_frame"
-       
-        trans = self.tf_buffer.lookup_transform(target_frame, source_frame, lookup_time, rospy.Duration(1))
+
+        trans = self.tf_buffer.lookup_transform(target_frame, source_frame,
+                                                lookup_time, rospy.Duration(1))
 
         cloud_out = do_transform_cloud(pc_ros, trans)
         return cloud_out
 
-    
     def transform_to_cam(self, pc_ros, stamp):
 
-        lookup_time = rospy.get_rostime() 
+        lookup_time = rospy.get_rostime()
         # end_time = stamp + rospy.Duration(10)
         target_frame = "xtion_depth_frame"  # base_link
         source_frame = "base_footprint"
-       
-        trans = self.tf_buffer.lookup_transform(target_frame, source_frame, lookup_time, rospy.Duration(1))
+
+        trans = self.tf_buffer.lookup_transform(target_frame, source_frame,
+                                                lookup_time, rospy.Duration(1))
 
         cloud_out = do_transform_cloud(pc_ros, trans)
         return cloud_out
 
     def segment_pcl(self, cloud_pcl, model_type):
 
-    
         seg = cloud_pcl.make_segmenter_normals(ksearch=50)
         seg.set_optimize_coefficients(True)
         seg.set_model_type(model_type)
@@ -345,7 +367,7 @@ class PCLHandler:
         seg.set_max_iterations(200)
         seg.set_distance_threshold(0.006)
         indices, coefficients = seg.segment()
-        
+
         # https://pointclouds.org/documentation/group__sample__consensus.html
         # describes the coeffici
         if len(indices) == 0:
@@ -367,7 +389,7 @@ class PCLHandler:
         points_list = []
 
         for data in pc2.read_points(ros_cloud, skip_nans=True):
-            points_list.append([data[0], data[1], data[2], data[3]])#]
+            points_list.append([data[0], data[1], data[2], data[3]])  #]
 
         pcl_data = pcl.PointCloud_PointXYZRGB()
         # pcl_data = pcl.PointCloud()
@@ -392,22 +414,26 @@ class PCLHandler:
         ros_msg.height = 1
         ros_msg.width = pcl_array.size
 
-        ros_msg.fields.append(PointField(
-                                name="x",
-                                offset=0,
-                                datatype=PointField.FLOAT32, count=1))
-        ros_msg.fields.append(PointField(
-                                name="y",
-                                offset=4,
-                                datatype=PointField.FLOAT32, count=1))
-        ros_msg.fields.append(PointField(
-                                name="z",
-                                offset=8,
-                                datatype=PointField.FLOAT32, count=1))
-        ros_msg.fields.append(PointField(
-                                name="rgb",
-                                offset=16,
-                                datatype=PointField.FLOAT32, count=1))
+        ros_msg.fields.append(
+            PointField(name="x",
+                       offset=0,
+                       datatype=PointField.FLOAT32,
+                       count=1))
+        ros_msg.fields.append(
+            PointField(name="y",
+                       offset=4,
+                       datatype=PointField.FLOAT32,
+                       count=1))
+        ros_msg.fields.append(
+            PointField(name="z",
+                       offset=8,
+                       datatype=PointField.FLOAT32,
+                       count=1))
+        ros_msg.fields.append(
+            PointField(name="rgb",
+                       offset=16,
+                       datatype=PointField.FLOAT32,
+                       count=1))
 
         ros_msg.is_bigendian = False
         ros_msg.point_step = 32
@@ -424,7 +450,9 @@ class PCLHandler:
             g = (pack & 0x0000FF00) >> 8
             b = (pack & 0x000000FF)
 
-            buffer.append(struct.pack('ffffBBBBIII', data[0], data[1], data[2], 1.0, b, g, r, 0, 0, 0, 0))
+            buffer.append(
+                struct.pack('ffffBBBBIII', data[0], data[1], data[2], 1.0, b,
+                            g, r, 0, 0, 0, 0))
 
         ros_msg.data = "".join(buffer)
 
@@ -433,7 +461,7 @@ class PCLHandler:
     def extracting_indices(self, pcl_2):
 
         print("PointCloud before filtering: " +
-            str(pcl_2.width * pcl_2.height) + " data points.")
+              str(pcl_2.width * pcl_2.height) + " data points.")
 
         # Create the filtering object: downsample the dataset using a leaf size of 1cm
         # pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
@@ -451,10 +479,6 @@ class PCLHandler:
         # std::cerr << "PointCloud after filtering: " << cloud_filtered->width * cloud_filtered->height << " data points." << std::endl;
         # cloud_filtered = pcl.PCLPointCloud2(pcl_2_filtered.to_array())
         print('PointCloud after filtering: ' +
-            str(pcl_2_filtered.width * pcl_2_filtered.height) + ' data points.')
+              str(pcl_2_filtered.width * pcl_2_filtered.height) +
+              ' data points.')
         return pcl_2_filtered
-
-
-
-
-    

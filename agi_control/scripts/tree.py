@@ -31,7 +31,7 @@ def agi_ctrl_root():
     pick_place = py_trees.composites.Sequence(name="Pick and Place")
 
     # Place block behavior
-    place_block = robot_behaviors.PlaceBlock(name="Place Block")
+    #place_block = robot_behaviors.PlaceBlock(name="Place Block")
 
     # Idle behavior
     idle = py_trees.behaviours.Running(name="Idle")
@@ -43,7 +43,7 @@ def agi_ctrl_root():
 
     pick_place.add_child(get_cube_subtask)
     pick_place.add_child(pick_subtask)
-    pick_place.add_child(place_block)
+    #pick_place.add_child(place_block)
     tasks.add_child(pick_place)
     tasks.add_child(idle)
     root.add_child(data2bb)

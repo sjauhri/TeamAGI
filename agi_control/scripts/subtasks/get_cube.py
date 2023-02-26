@@ -21,8 +21,8 @@ blackboard = py_trees.blackboard.Blackboard()
 #              If the guard fails, the subtask will be executed.
 #============================================================================
 
-# Check if the variable next_block is not None.
-# If the variable next_block is not None, the guard will succeed and the subtask will not be executed.
+# Check if the variable next_cube is not None.
+# If the variable next_cube is not None, the guard will succeed and the subtask will not be executed.
 guard_has_cube = py_trees.blackboard.CheckBlackboardVariable(
     name="Has Next Cube",
     variable_name="next_cube",
@@ -51,7 +51,7 @@ action = GetCubeBehaviour("Get Cube")
 # If the end condition succeeds, the subtask will be finished.
 # If the end condition fails, the subtask will go to the recovery behaviour.
 #============================================================================
-# Check if the variable next_block is not None
+# Check if the variable next_cube is not None
 end_condition_has_cube = py_trees.blackboard.CheckBlackboardVariable(
     name="Has Next Cube",
     variable_name="next_cube",

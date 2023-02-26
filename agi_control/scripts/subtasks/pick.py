@@ -9,8 +9,9 @@ from subtasks.subtask import Subtask
 from subtasks.subtask import SubtaskGuard
 
 from behaviors.pick_behaviour import PickBehaviour
+from behaviors.pick_recovery import PickRecovery
 
-from utils.robot_utils import get_gripper_status
+from utils.robot_utils import open_gripper
 
 task_name = "Pick"
 
@@ -23,16 +24,16 @@ blackboard = py_trees.blackboard.Blackboard()
 # (IMPORTANT): If the guard succeeds, the subtask will not be executed.
 #              If the guard fails, the subtask will be executed.
 #============================================================================
-# Check if the variable next_block is not None.
-# If the variable next_block is not None, the guard will succeed and the subtask will not be executed.
-guard_has_block = py_trees.blackboard.CheckBlackboardVariable(
-    name="Has Next Block",
-    variable_name="next_block",
+# Check if the variable next_cube is not None.
+# If the variable next_cube is not None, the guard will succeed and the subtask will not be executed.
+guard_has_cube = py_trees.blackboard.CheckBlackboardVariable(
+    name="Has Next Cube | Pick",
+    variable_name="next_cube",
     expected_value='',
-    comparison_operator=operator.ne)
+    comparison_operator=operator.eq)
 
 guard_gripper_open = py_trees.blackboard.CheckBlackboardVariable(
-    name="Gripper Open",
+    name="Gripper Open | Pick",
     variable_name="gripper_status",
     expected_value=1,
     comparison_operator=operator.eq)
@@ -57,24 +58,21 @@ action = PickBehaviour("Pick")
 # Define the recovery behaviour of the subtask.
 # If the action or end condition fails, the subtask will go to the recovery behaviour.
 #============================================================================
-# TODO: Need implementation
+recovery = PickRecovery("Pick Recovery")
 
 
 def create_pick_subtask():
     """
     Create the pick subtask.
     """
-    gripper_status = get_gripper_status('left')
-    blackboard.set("gripper_status", gripper_status)
-
     guard = SubtaskGuard(name="Guard - Pick")
-    guard.add_guard(guard_has_block)
+    guard.add_guard(guard_has_cube)
     guard.add_guard(guard_gripper_open)
 
     pick_subtask = Subtask(name=task_name,
                            guard=guard,
                            action=action,
                            end_condition=None,
-                           recovery=None)
+                           recovery=recovery)
 
     return pick_subtask.create_subtask()

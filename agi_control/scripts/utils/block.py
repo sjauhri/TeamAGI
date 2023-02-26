@@ -45,7 +45,7 @@ class Block():
     @property
     def color(self):
         return self._color
-    
+
     @property
     def position(self):
         return self._pose.pose.position
@@ -181,12 +181,9 @@ class BlockManager():
         """
         for block in self._blocks.values():
             if self._is_close(block.pose, pose, threshold):
-                # checks color of identified block, when a proper one is given 
-                if color not in ["red", "blue", "yellow", "green"] or block.color == color:
-                    print("found")
-                    print(block.id)
-                    print("with color")
-                    print(color)
+                # checks color of identified block, when a proper one is given
+                if color not in ["red", "blue", "yellow", "green"
+                                 ] or block.color == color:
                     return block.id
         return None
 

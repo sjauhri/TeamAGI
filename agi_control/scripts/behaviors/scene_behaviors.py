@@ -8,7 +8,7 @@ from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import PoseStamped
 
 # Moveit
-from moveit_commander import PlanningSceneInterface
+from moveit_commander import PlanningSceneInterface, MoveGroupCommander
 from moveit_msgs.srv import GetPlanningScene
 
 # Pytrees
@@ -16,7 +16,7 @@ import py_trees
 import py_trees.console as console
 from py_trees.blackboard import Blackboard
 
-# perseption 
+# perseption
 from agi_vision.msg import PerceptionMSG
 
 # Utils
@@ -38,19 +38,26 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         Args:
             name (str): The name of the behavior
         """
-        self.blackboard = Blackboard()
-        self._scene = PlanningSceneInterface()
+        super(GetSceneBlocks, self).__init__(name=name)
+
+    def setup(self, timeout):
+
+        self._scene = PlanningSceneInterface(synchronous=True)
+        self.arm_left = MoveGroupCommander("arm_left_torso")
+        self.arm_right = MoveGroupCommander("arm_right_torso")
+        self.gripper_left = MoveGroupCommander("gripper_left")
+        self.gripper_right = MoveGroupCommander("gripper_right")
         rospy.loginfo("Connecting to /get_planning_scene service")
         self.scene_srv = rospy.ServiceProxy("/get_planning_scene",
                                             GetPlanningScene)
         self.scene_srv.wait_for_service()
 
         rospy.sleep(1)
-        super(GetSceneBlocks, self).__init__(name=name)
 
-    def setup(self, timeout):
         self.block_manager = BlockManager()
         self._scene.clear()
+
+        self.blackboard = Blackboard()
         # Add table to the planning scene
         table = {"size": [0.60, 0.75, 0.45]}
         table_pose = PoseStamped()
@@ -60,6 +67,7 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         table_pose.pose.position.z = table["size"][2] / 2
         table_pose.pose.orientation.w = 1.0
         self._scene.add_box("table", table_pose, table["size"])
+        rospy.sleep(0.5)
         try:
             self.table_co = self._scene.get_objects(["table"])["table"]
             return True
@@ -67,17 +75,17 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
             console.logerror("Table not found in the planning scene")
             return False
 
-    def update(self):
+    def initialise(self):
         """
         Retrieve the collision objects from the planning scene, filter them to select only the ones that have an id that starts with 'box',
         and store them in the blackboard.
 
         Returns:
-            py_trees.common.Status.SUCCESS
+            None
         """
         # cube_detections = self.__get_published_poses()
         perception_data = self._get_published_perception()
-        
+
         # for pose in cube_detections.poses:
         for i, pose in enumerate(perception_data.pose_array.poses):
             pose_stamp = PoseStamped()
@@ -85,27 +93,23 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
             pose_stamp.pose = pose
 
             self.block_manager.manage(pose_stamp,
-                                    confidence=perception_data.confidence[i],
-                                    color=perception_data.color_names[i])
+                                      confidence=perception_data.confidence[i],
+                                      color=perception_data.color_names[i])
 
         console.loginfo("Found {} cubes in the scene".format(
             perception_data.size))
-        
-        self.block_manager.print_block_info()
 
         self.__update_contact_objects()
 
         cubes = self.block_manager.get_blocks()
-        # stack_blocks = self.blackboard.blocks_in_stack
-        # # Remove the blocks that are already in the stack
-        # if len(stack_blocks) > 0:
-        #     blocks = [
-        #         block for block in blocks if block.id not in
-        #         [stack_block.id for stack_block in stack_blocks]
-        #     ]
 
-        self.blackboard.scene_cubes = cubes
-        self.blackboard.table_block = self.table_co
+        # Store the cubes in the blackboard
+        self.blackboard.set("scene_cubes", cubes)
+        self.blackboard.set("table_block", self.table_co)
+
+        print(py_trees.blackboard.Blackboard())
+
+    def update(self):
 
         return py_trees.common.Status.SUCCESS
 
@@ -117,7 +121,8 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
     @staticmethod
     def _get_published_perception():
         """Retrieves the pose, color, ... published in '/PerceptionMSG' topic."""
-        perception_data = rospy.wait_for_message('/PerceptionMSG', PerceptionMSG)
+        perception_data = rospy.wait_for_message('/PerceptionMSG',
+                                                 PerceptionMSG)
         return perception_data
 
     def __update_contact_objects(self):
@@ -139,6 +144,11 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         # Update the param
         rospy.set_param("~links_to_allow_contact", links_to_allow_contact)
 
+        self.arm_left.set_support_surface_name("table")
+        self.arm_right.set_support_surface_name("table")
+        self.gripper_left.set_support_surface_name("table")
+        self.gripper_right.set_support_surface_name("table")
+
 
 class ResetNextBlock(py_trees.behaviour.Behaviour):
 
@@ -149,5 +159,5 @@ class ResetNextBlock(py_trees.behaviour.Behaviour):
 
     def update(self):
         """Reset the next block in the blackboard."""
-        self.blackboard.next_cube = None
+        self.blackboard.set("next_block", None)
         return py_trees.common.Status.SUCCESS

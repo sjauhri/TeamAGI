@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import py_trees
-import py_trees_ros.trees
+import rospy
 
 
 class SubtaskGuard(py_trees.behaviour.Behaviour):
@@ -11,12 +11,12 @@ class SubtaskGuard(py_trees.behaviour.Behaviour):
     Example:
         >>> guard1 = py_trees.blackboard.CheckBlackboardVariable(
         ...     name="Guard1",
-        ...     variable_name="next_block",
+        ...     variable_name="next_cube",
         ...     expected_value='',
         ...     comparison_operator=operator.ne)
         >>> guard2 = py_trees.blackboard.CheckBlackboardVariable(
         ...     name="Guard2",
-        ...     variable_name="next_block",
+        ...     variable_name="next_cube",
         ...     expected_value='',
         ...     comparison_operator=operator.ne)
         >>> guard = SubtaskGuard("Guard")
@@ -28,14 +28,19 @@ class SubtaskGuard(py_trees.behaviour.Behaviour):
         super(SubtaskGuard, self).__init__(name)
         self._guards = []
 
+    def initialise(self):
+        self._blackboard = py_trees.blackboard.Blackboard()
+
     def add_guard(self, guard):
         self._guards.append(guard)
 
     def update(self):
         for guard in self._guards:
-            if guard.update() == py_trees.common.Status.FAILURE:
-                return py_trees.common.Status.FAILURE
-        return py_trees.common.Status.SUCCESS
+            res = guard.update()
+            if res != py_trees.common.Status.FAILURE:
+                rospy.loginfo("Guard {} failed".format(guard.name))
+                return py_trees.common.Status.SUCCESS
+        return py_trees.common.Status.FAILURE
 
 
 class Subtask:
