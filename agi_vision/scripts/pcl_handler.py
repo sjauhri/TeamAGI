@@ -21,6 +21,9 @@ from shape_msgs.msg import Plane
 from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
 from utils import k_means_clustering, XYZRGB_to_XYZ, find_edge, get_pose
 # https://answers.ros.org/question/59725/publishing-to-a-topic-via-subscriber-callback-function/
+import cluster_utils
+import pdb
+from pdb import set_trace as bp
 
 from agi_vision.msg import PerceptionMSG
 
@@ -45,6 +48,15 @@ class PCLHandler:
         self.pub_perception = rospy.Publisher('PerceptionMSG',
                                               PerceptionMSG,
                                               queue_size=10)
+
+        self.pub_remaining = rospy.Publisher('PerceptionAlgoRemaining',
+                                              PointCloud2,
+                                              queue_size=10)
+
+        self.pub_extracted = rospy.Publisher('PerceptionAlgoExtracted',
+                                        PointCloud2,
+                                        queue_size=10)
+
 
         self.pub1_edge = rospy.Publisher('Edge_point1',
                                          PointCloud2,
@@ -89,7 +101,7 @@ class PCLHandler:
         # for p in pc2.read_points(data, field_names = ("x", "y", "z"), skip_nans=True):
         #     print " x : %f  y: %f  z: %f" %(p[0],p[1],p[2])
 
-        n_clusters_fixed = 3  # TODO make config!
+        n_clusters_fixed = 10  # TODO make config!
 
         pcl_data = self.ros_to_pcl(data)
         fil = pcl_data.make_passthrough_filter()
@@ -125,83 +137,30 @@ class PCLHandler:
         find_n_cluster = True
         n_clusters = n_clusters_fixed
 
-        if find_n_cluster:
-            current_n = 1
-            thr_max = 1500
-            thr_min = 500
-            running = True
-            while running:
-                print("number of clusters")
-                print(current_n)
-                old_n = current_n
-
-                # clustering
-                cluster_indices, centroids = k_means_clustering(
-                    np.array(cloud_plane), current_n, 1000)
-
-                for i in range(current_n):
-                    # clustered_points = cloud_plane.extract(cluster_indices[i], negative=False)
-
-                    # cluster it so small
-                    if len(cluster_indices[i]) < thr_min:
-                        print("Cluster is very small!")
-
-                    # cluster is to big, split it up
-                    elif len(cluster_indices[i]) > thr_max:
-                        print("Cluster is too big!")
-                        too_much = 0
-                        current_n += 1
-                        break
-
-                    # cluster between min and max
-                    else:  # len(cluster_indices[i]) < thr_max:
-
-                        # point distance stuff
-                        # clustered_points = cloud_plane.extract(cluster_indices[i], negative=False)
-                        # best_point, indices = find_edge(clustered_points, centroids[i])
-                        # array_cloud=np.array(XYZRGB_to_XYZ(points))
-                        # center=centroids[i][0:3]
-                        # distances=np.linalg.norm(array_cloud-center,axis=1)
-
-                        # distcnace between centroids should be more than 5 cm
-                        # print(centroids)
-                        for j in range(i, len(centroids), 1):
-                            too_much = 0
-                            # print(j)
-                            # dont compare same cluster
-                            if i != j:
-                                distance = np.linalg.norm(centroids[i][:3] -
-                                                          centroids[j][:3])
-
-                                if distance < 0.03:
-                                    too_much += 1
-                                    print("Clusters are at the same cube!")
-                                    print(distance)
-                                    print(i)
-                                    print(j)
-
-                if old_n == current_n:
-                    n_clusters = current_n - too_much
-                    running = False
-
-            print("final number of clusters")
-            print(n_clusters)
-
+        # find n_cluster!
+        # n_clusters_1 = cluster_utils.find_n_clusters_1(cloud_plane)
+        # print(n_clusters_1)
+        n_init_guess = 10
+        n_max = 30
+        thr_max = 1100
+        thr_min = 750
+        n_iterate = 5
+        
+        # print("start algo")
+        # n_extracted, remaining_points, extracted_points = cluster_utils.find_n_clusters_2(cloud_plane, n_init_guess, n_max, thr_min, thr_max, n_iterate)
+        # print("extracted blocks:")
+        # print(n_extracted)
+        # print(cloud_plane)
+        # print(extracted_points)
+        # print(remaining_points)
+        # print("algo ended")
         # Do clustering
-        clustered_points = cloud_plane
+        # clustered_points = cloud_plane
+        # publish points for debugging
 
-        if n_clusters == n_clusters_fixed:
-            print("found exact number of clusters!")
-        else:
-            print("find cluster amount failed!")
-            print("number of clusters found is")
-            print(n_clusters)
-            print("number of real clusters is")
-            print(n_clusters_fixed)
-            print("using n_clusters:")
-            # TODO: turn off to use found number of clusters
-            n_clusters = n_clusters_fixed
-            print(n_clusters)
+        # self.pub_remaining.publish(self.pcl_to_ros(remaining_points))
+        # self.pub_extracted.publish(self.pcl_to_ros(extracted_points))
+        # print("published")
 
         # white_cloud = self.XYZRGB_to_XYZ(cloud_filtered)
         cluster_indices, centroids = k_means_clustering(
