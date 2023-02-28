@@ -13,6 +13,7 @@ import random
 # import pickle
 import cPickle as pickle
 import timeit
+import h5py
 
 
 def find_maps_folder():
@@ -36,13 +37,13 @@ def load_maps():
     maps_folder = find_maps_folder()
     map_left, map_right = None, None
     for root, dirs, files in os.walk(maps_folder):
-        if "map_left.pkl" in files:
-            with open(os.path.join(root, "map_left.pkl"), "rb") as f:
-                map_left = pickle.load(f)
-        if "map_right.pkl" in files:
-            with open(os.path.join(root, "map_right.pkl"), "rb") as f:
-                map_right = pickle.load(f)
-    return [map_left, map_right]
+        if "map_left.h5" in files:
+            with h5py.File(os.path.join(root, "map_left.h5"), "r") as f:
+                map_l = np.array(f["map_l_c"]) 
+        if "map_right.h5" in files:
+            with h5py.File(os.path.join(root, "map_right.h5"), "r") as f:
+                map_r = np.array(f["map_r_c"]) 
+    return [map_l, map_r]
 
 
 class Arm():
@@ -52,7 +53,7 @@ class Arm():
         self.map_l = map_l
         self.map_r = map_r
 
-    def score(self, map, pos, left_right):
+    def score(self, map, pos):
         # reach map,poses -> list of scores
         list_score = []
         for p in pos:
@@ -63,7 +64,7 @@ class Arm():
             min_z, max_z, = (map[0, 2], map[-1, 2])
             min_roll, max_roll, = (map[0, 3], map[-1, 3])
             min_pitch, max_pitch, = (map[0, 4], map[-1, 4])
-            min_yaw, max_yaw, = (map[0, 5], map[-1, 5])
+            min_yaw, max_yaw, = (np.min(map[:, 5]), np.max(map[-1, 5]))
             cartesian_res = 0.05
             angular_res = np.pi / 8
             # print("min_x, max_x:", min_x,"~", max_x)
@@ -72,7 +73,6 @@ class Arm():
             # print("min_roll, max_roll:", min_roll,"~", max_roll)
             # print("min_pitch, max_pitch:", min_pitch,"~", max_pitch)
             # print("min_yaw, max_yaw:",min_yaw,"~", max_yaw)
-            # print(map[:-5,5])
 
             x_bins = np.ceil((max_x - min_x) / cartesian_res)
             y_bins = np.ceil((max_y - min_y) / cartesian_res)
@@ -100,11 +100,11 @@ class Arm():
             yaw_idx = int(np.floor((p[5] + np.pi) / (angular_res / yaw_bins)))
 
             # Compute the index in the reachability map array
-            map_idx = x_idx * x_ind_offset + y_idx * y_ind_offset + z_idx * z_ind_offset + roll_idx  \
-            * roll_ind_offset + pitch_idx * pitch_ind_offset + yaw_idx * yaw_ind_offset
+            map_idx = (x_idx * x_ind_offset + y_idx * y_ind_offset + z_idx * z_ind_offset + roll_idx  \
+            * roll_ind_offset + pitch_idx * pitch_ind_offset + yaw_idx * yaw_ind_offset)/10
 
             list_score.append(map[int(map_idx), -1])
-        #   print(map_idx)
+        # print(map_idx)
         # print("-----------------------------------------")
 
         return list_score
@@ -112,7 +112,7 @@ class Arm():
     def selectArm(self, score_l, score_r):
         if score_l == 0 and score_r == 0:
             # print("the inputed pose isn't in the reach map")
-            return ""
+            return "left"
         elif score_l > score_r:
             # print("left arm")
             return "left"
@@ -129,8 +129,8 @@ class Arm():
 
         start = timeit.default_timer()
 
-        list_score_l = self.score(map_left, self.pos, "left")
-        list_score_r = self.score(map_right, self.pos, "right")
+        list_score_l = self.score(map_left, self.pos)
+        list_score_r = self.score(map_right, self.pos)
 
         end = timeit.default_timer()
         print('Running time of get scores: %s Seconds' % (end - start))

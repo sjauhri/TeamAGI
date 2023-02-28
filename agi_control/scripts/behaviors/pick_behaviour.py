@@ -80,8 +80,8 @@ class PickBehaviour(py_trees_ros.actions.ActionClient):
         pick_up_goal = PickUpObjectGoal()
 
         # test: arm selection
-        pick_up_goal.left_right = 'left'
-        #pick_up_goal.left_right = self.select_arm()
+        # pick_up_goal.left_right = 'left'
+        pick_up_goal.left_right = self.select_arm()
         console.loginfo("arm:{}".format(pick_up_goal.left_right))
 
         next_cube = self._blackboard.get("next_cube")
