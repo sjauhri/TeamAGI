@@ -2,16 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import rospy
+import pdb
 import actionlib
 from std_msgs.msg import Time
 from control_msgs.msg import FollowJointTrajectoryGoal
 from control_msgs.msg import JointTolerance
-from control_msgs.srv import QueryTrajectoryState
+from control_msgs.msg import JointTrajectoryControllerState
 from play_motion_msgs.msg import PlayMotionAction, PlayMotionGoal
-from trajectory_msgs.msg import JointTrajectory
-from trajectory_msgs.msg import JointTrajectoryPoint
 import numpy as np
-from arm_selection import Arm, load_maps
+from behaviors.arm_selection import Arm, load_maps
+
 
 #---------------------------------#
 # Gripper Stuff
@@ -30,28 +30,35 @@ def get_gripper_status(left_right):
     gripper_vel = []
 
     if left_right == "left":
-        srv_name = "/gripper_left_controller/query_state"
+        topic_name = "/parallel_gripper_left_controller/state"
     elif left_right == "right":
-        srv_name = "/gripper_right_controller/query_state"
+        topic_name = "/parallel_gripper_right_controller/state"
 
-    rospy.wait_for_service(srv_name)
     try:
-        srv = rospy.ServiceProxy(srv_name, QueryTrajectoryState)
-        resp = srv(rospy.Time.now())
-        gripper_pos = resp.position
-        gripper_vel = resp.velocity
-    except rospy.ServiceException as e:
-        rospy.logerr("Service call failed")
-        return 'error'
+        rospy.wait_for_message(topic_name,
+                               JointTrajectoryControllerState,
+                               timeout=1.0)
+        msg = rospy.wait_for_message(topic_name,
+                                     JointTrajectoryControllerState,
+                                     timeout=1.0)
+        gripper_pos_actual = msg.actual.positions
+        gripper_pos_desired = msg.desired.positions
+        gripper_pos_error = msg.error.positions
 
-    if gripper_pos[0] > 0.035:
-        return 'open'
-    elif gripper_pos[0] < 0.035 and gripper_pos[0] > 0.02:
-        return 'with_block'
-    elif gripper_pos[0] < 0.02:
-        return 'closed'
+        rospy.loginfo("gripper_pos_actual: {}".format(gripper_pos_actual))
+        rospy.loginfo("gripper_pos_desired: {}".format(gripper_pos_desired))
+        rospy.loginfo("gripper_pos_error: {}".format(gripper_pos_error))
+    except rospy.ROSException:
+        return "unknown"
+
+    if gripper_pos_actual[0] > 0.04:
+        return "open"
+    elif gripper_pos_error[0] < -0.01:
+        return "with_cube"
+    elif gripper_pos_actual[0] < 0.01:
+        return "closed"
     else:
-        return 'unknown'
+        return "unknown"
 
 
 def open_gripper(left_right):
@@ -85,11 +92,10 @@ def open_gripper(left_right):
         return True
     else:
         return False
-    
-def get_arm(map_list,next_cube):
+
+
+def get_arm(map_list, next_cube):
     pose = np.array(([[next_cube.pose.pose.position.x,next_cube.pose.pose.position.y,next_cube.pose.pose.position.z,\
                     next_cube.pose.pose.orientation.x,next_cube.pose.pose.orientation.y,next_cube.pose.pose.orientation.z]]))
     arm = Arm(pose, map_list[0], map_list[0])
     return arm.getArm()
-
-    

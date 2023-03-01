@@ -7,6 +7,11 @@ from moveit_msgs.msg import Grasp
 from moveit_commander import PlanningSceneInterface
 import rospy
 
+from behaviors.arm_selection import load_maps
+from utils.robot_utils import get_arm
+
+map_list = load_maps()
+
 
 class Block():
     """This class represents a block in the scene.
@@ -29,6 +34,7 @@ class Block():
         self._collision_object = self._scene.get_objects([self._id])[self._id]
         self._properties = {}
         self._confidence = confidence
+        self._left_right = get_arm(map_list, self)
 
     @property
     def id(self):
@@ -61,6 +67,10 @@ class Block():
     @property
     def confidence(self):
         return self._confidence
+
+    @property
+    def left_right(self):
+        return self._left_right
 
     def add_property(self, name, value):
         self._properties[name] = value

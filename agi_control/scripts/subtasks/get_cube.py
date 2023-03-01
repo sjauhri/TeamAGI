@@ -14,28 +14,26 @@ task_name = "Get Cube"
 blackboard = py_trees.blackboard.Blackboard()
 
 #============================================================================
-# Guards
-# Define conditions that must be met before the subtask can be executed.
+# Initial conditions
+# Define conditions that must be met before the action can be executed.
 #
-# (IMPORTANT): If the guard succeeds, the subtask will not be executed.
-#              If the guard fails, the subtask will be executed.
+# (IMPORTANT): If the guards succeed, the subtask will be executed.
+#              If the guards fail, the subtask will not be executed.
 #============================================================================
 
-# Check if the variable next_cube is not None.
-# If the variable next_cube is not None, the guard will succeed and the subtask will not be executed.
-guard_has_cube = py_trees.blackboard.CheckBlackboardVariable(
-    name="Has Next Cube",
-    variable_name="next_cube",
+# Check if there are cubes in the scene by checking the variable scene_blocks
+# If there are cubes in the scene, the guard will succeed and the subtask will be executed.
+guard_has_no_scene_cube = py_trees.blackboard.CheckBlackboardVariable(
+    name="IC - Has No Scene Cube | Get Cube",
+    variable_name="scene_cubes",
     expected_value='',
     comparison_operator=operator.ne)
 
-# Check if there are no cube in the scene by checking the variable scene_blocks
-# If there are no cube in the scene, the guard will succeed and the subtask will not be executed.
-guard_has_no_scene_cube = py_trees.blackboard.CheckBlackboardVariable(
-    name="Has Cubes in Scene",
-    variable_name="scene_cubes",
-    expected_value='',
-    comparison_operator=operator.eq)
+# Check if the variable next_cube is None.
+# If the variable next_cube is empty, the guard will succeed and the subtask will be executed.
+guard_has_cube = py_trees.decorators.FailureIsSuccess(
+    py_trees.blackboard.CheckBlackboardVariable(
+        name="IC - Has Next Cube | Get Cube", variable_name="next_cube"))
 
 #============================================================================
 # Actions
@@ -53,7 +51,7 @@ action = GetCubeBehaviour("Get Cube")
 #============================================================================
 # Check if the variable next_cube is not None
 end_condition_has_cube = py_trees.blackboard.CheckBlackboardVariable(
-    name="Has Next Cube",
+    name="EC - Has Next Cube | Get Cube",
     variable_name="next_cube",
     expected_value='',
     comparison_operator=operator.ne)
@@ -76,11 +74,21 @@ def create_get_cube_subtask():
     """
 
     # Create a guard that is composed of multiple guards
-    guard = SubtaskGuard("Guard - Get Cube")
-    guard.add_guard(guard_has_cube)
-    guard.add_guard(guard_has_no_scene_cube)
+    initial_condition = SubtaskGuard("Initial Conditon - Get Cube")
+    initial_condition.add_guard(guard_has_cube)
+    initial_condition.add_guard(guard_has_no_scene_cube)
 
-    get_cube_subtask = Subtask(task_name, guard, action,
-                               end_condition_has_cube, None)
+    action_guard = SubtaskGuard("Action Guard - Get Cube")
+
+    end_condition = SubtaskGuard("End Condition - Get Cube")
+
+    recovery_guard = SubtaskGuard("Recovery Guard - Get Cube")
+
+    get_cube_subtask = Subtask(name=task_name)
+    get_cube_subtask.set_action(action)
+    get_cube_subtask.set_initial_condition(guard_has_cube)
+    get_cube_subtask.set_action_guard(action_guard)
+    get_cube_subtask.set_end_condition(end_condition)
+    get_cube_subtask.set_recovery_guard(recovery_guard)
 
     return get_cube_subtask.create_subtask()

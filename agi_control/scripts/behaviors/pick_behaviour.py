@@ -56,11 +56,11 @@ class PickBehaviour(py_trees_ros.actions.ActionClient):
     def initialise(self):
         self.action_goal = self.get_pick_up_goal()
         # gripper_status = get_gripper_status('left')
-        gripper_status = get_gripper_status(get_arm(self.map_list,self._blackboard.get("next_cube")))
+        gripper_status = get_gripper_status(
+            get_arm(self.map_list, self._blackboard.get("next_cube")))
         self._blackboard.set("gripper_status", gripper_status)
         rospy.logdebug("Initialising PickBehaviour")
         super(PickBehaviour, self).initialise()
-
 
     def get_pick_up_goal(self):
         """Generates the goal for the action client
@@ -72,7 +72,7 @@ class PickBehaviour(py_trees_ros.actions.ActionClient):
         pick_up_goal = PickUpObjectGoal()
 
         # pick_up_goal.left_right = 'left'
-        pick_up_goal.left_right = get_arm(self.map_list,self._blackboard.get("next_cube"))
+        pick_up_goal.left_right = self._blackboard.get("next_cube").left_right
         console.loginfo("arm:{}".format(pick_up_goal.left_right))
 
         next_cube = self._blackboard.get("next_cube")

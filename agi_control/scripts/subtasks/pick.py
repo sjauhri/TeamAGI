@@ -18,24 +18,32 @@ task_name = "Pick"
 blackboard = py_trees.blackboard.Blackboard()
 
 #============================================================================
-# Guards
+# Initial conditions
 # Define conditions that must be met before the subtask can be executed.
 #
 # (IMPORTANT): If the guard succeeds, the subtask will not be executed.
 #              If the guard fails, the subtask will be executed.
 #============================================================================
-# Check if the variable next_cube is not None.
-# If the variable next_cube is not None, the guard will succeed and the subtask will not be executed.
-guard_has_cube = py_trees.blackboard.CheckBlackboardVariable(
-    name="Has Next Cube | Pick",
-    variable_name="next_cube",
-    expected_value='',
-    comparison_operator=operator.eq)
 
+# Check if the variable next_cube exists.
+# If the variable next_cube is None, the guard will fail and the subtask will not be executed.
+guard_has_cube = py_trees.blackboard.CheckBlackboardVariable(
+    name="IC - Has Next Cube | Pick", variable_name="next_cube")
+
+#============================================================================
+# Action Guards
+# Define conditions that must be met before the action can be executed.
+#
+# (IMPORTANT): If the guard succeeds, the action will be executed.
+#              If the guard fails, the action will not be executed.
+#============================================================================
+
+# Check if the gripper is open.
+# If the gripper is not open, the guard will fail and the subtask will not be executed.
 guard_gripper_open = py_trees.blackboard.CheckBlackboardVariable(
-    name="Gripper Open | Pick",
+    name="AG - Gripper Open | Pick",
     variable_name="gripper_status",
-    expected_value=1,
+    expected_value="open",
     comparison_operator=operator.eq)
 
 #============================================================================
@@ -51,7 +59,12 @@ action = PickBehaviour("Pick")
 # If the end condition succeeds, the subtask will be finished.
 # If the end condition fails, the subtask will go to the recovery behaviour.
 #============================================================================
-# TODO: Check if the block is in the gripper
+# Check if the gripper_status is with_cube
+end_condition_cube_gripped = py_trees.blackboard.CheckBlackboardVariable(
+    name="EC - Cube Gripped | Pick",
+    variable_name="gripper_status",
+    expected_value='with_cube',
+    comparison_operator=operator.eq)
 
 #============================================================================
 # Recovery
@@ -65,14 +78,22 @@ def create_pick_subtask():
     """
     Create the pick subtask.
     """
-    guard = SubtaskGuard(name="Guard - Pick")
-    guard.add_guard(guard_has_cube)
-    guard.add_guard(guard_gripper_open)
 
-    pick_subtask = Subtask(name=task_name,
-                           guard=guard,
-                           action=action,
-                           end_condition=None,
-                           recovery=recovery)
+    initial_condition = SubtaskGuard(name="Initial Condition - Pick")
+    initial_condition.add_guard(guard_has_cube)
+
+    action_guard = SubtaskGuard(name="Action Guard - Pick")
+    action_guard.add_guard(guard_gripper_open)
+
+    end_condition = SubtaskGuard(name="End Condition - Pick")
+
+    recovery_guard = SubtaskGuard(name="Recovery Guard - Pick")
+
+    pick_subtask = Subtask(name=task_name)
+    pick_subtask.set_action(action)
+    pick_subtask.set_initial_condition(initial_condition)
+    pick_subtask.set_action_guard(guard_gripper_open)
+    pick_subtask.set_end_condition(end_condition)
+    pick_subtask.set_recovery_guard(recovery_guard)
 
     return pick_subtask.create_subtask()

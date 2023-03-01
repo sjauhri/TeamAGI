@@ -21,6 +21,7 @@ from agi_vision.msg import PerceptionMSG
 
 # Utils
 from utils.block import BlockManager
+from utils.robot_utils import get_gripper_status, get_arm
 
 import pdb
 
@@ -43,10 +44,6 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
     def setup(self, timeout):
 
         self._scene = PlanningSceneInterface(synchronous=True)
-        self.arm_left = MoveGroupCommander("arm_left_torso")
-        self.arm_right = MoveGroupCommander("arm_right_torso")
-        self.gripper_left = MoveGroupCommander("gripper_left")
-        self.gripper_right = MoveGroupCommander("gripper_right")
         rospy.loginfo("Connecting to /get_planning_scene service")
         self.scene_srv = rospy.ServiceProxy("/get_planning_scene",
                                             GetPlanningScene)
@@ -107,6 +104,13 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         self.blackboard.set("scene_cubes", cubes)
         self.blackboard.set("table_block", self.table_co)
 
+        # TEMPORARY NEED TO BE REMOVED
+        next_cube = self.blackboard.get("next_cube")
+        if next_cube is not None:
+            left_right = next_cube.left_right
+            gripper_status = get_gripper_status(left_right)
+            self.blackboard.set("gripper_status", gripper_status)
+
         print(py_trees.blackboard.Blackboard())
 
     def update(self):
@@ -143,11 +147,6 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
 
         # Update the param
         rospy.set_param("~links_to_allow_contact", links_to_allow_contact)
-
-        self.arm_left.set_support_surface_name("table")
-        self.arm_right.set_support_surface_name("table")
-        self.gripper_left.set_support_surface_name("table")
-        self.gripper_right.set_support_surface_name("table")
 
 
 class ResetNextBlock(py_trees.behaviour.Behaviour):

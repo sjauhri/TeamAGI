@@ -20,14 +20,15 @@ class PickRecovery(py_trees.behaviour.Behaviour):
     def initialise(self):
         self._blackboard = py_trees.blackboard.Blackboard()
 
-    def update(self, left_right):
+    def update(self):
+        # Retrieve pick_errors dictionary from blackboard
         pick_errors = self._blackboard.get("pick_errors")
         if pick_errors is None:
             return py_trees.common.Status.SUCCESS
-        for error in pick_errors:
-            if error == "gripper_closed":
-                res = self.recover_closed_gripper(left_right)
-                if not res:
+        for key, value in pick_errors.items():
+            if key == "closed_gripper":
+                res = self.recover_closed_gripper(value)
+                if res == py_trees.common.Status.FAILURE:
                     return py_trees.common.Status.FAILURE
 
         return py_trees.common.Status.SUCCESS

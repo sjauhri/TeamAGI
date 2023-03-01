@@ -3,6 +3,7 @@
 
 import py_trees
 import rospy
+import pdb
 
 
 class SubtaskGuard(py_trees.behaviour.Behaviour):
@@ -37,10 +38,10 @@ class SubtaskGuard(py_trees.behaviour.Behaviour):
     def update(self):
         for guard in self._guards:
             res = guard.update()
-            if res != py_trees.common.Status.FAILURE:
-                rospy.loginfo("Guard {} failed".format(guard.name))
-                return py_trees.common.Status.SUCCESS
-        return py_trees.common.Status.FAILURE
+            if res != py_trees.common.Status.SUCCESS:
+                rospy.loginfo("Guard {} failed.".format(guard.name))
+                return py_trees.common.Status.FAILURE
+        return py_trees.common.Status.SUCCESS
 
 
 class Subtask:
@@ -62,30 +63,71 @@ class Subtask:
         >>> subtask.create_subtask()
     """
 
-    def __init__(self, name, guard, action, end_condition, recovery):
+    def __init__(self, name):
         self.name = name
-        self.guard = guard
-        self.action = action
-        self.end_condition = end_condition
-        self.recovery = recovery
+        self.initial_condition = None
+        self.action_guard = None
+        self.action = None
+        self.end_condition = None
+        self.recovery_guard = None
+        self.recovery = None
 
     def create_subtask(self):
+        """This method creates a subtask.
+
+        Returns:
+            py_trees.composites.Sequence: Subtask.
+        """
+
         subtask = py_trees.composites.Selector(name=self.name)
-        executor = py_trees.composites.Sequence(
-            name="Execute_{}".format(self.name))
 
-        if self.guard is not None:
-            subtask.add_child(self.guard)
+        #Composites
+        initial_sequence = py_trees.composites.Sequence(
+            name='Initial-{}'.format(self.name))
+        recovery_sequence = py_trees.composites.Sequence(
+            name='Recovery-{}'.format(self.name))
+        action_sequence = py_trees.composites.Sequence(
+            name='Action-{}'.format(self.name))
+        execute_action_sequence = py_trees.composites.Sequence(
+            name='Execute Action-{}'.format(self.name))
+        end_condition_sequence = py_trees.composites.Sequence(
+            name='End Condition-{}'.format(self.name))
 
-        subtask.add_child(executor)
+        #Initial
+        initial_sequence.add_child(self.initial_condition)
+        initial_sequence.add_child(action_sequence)
+        action_sequence.add_child(execute_action_sequence)
+        action_sequence.add_child(end_condition_sequence)
+        execute_action_sequence.add_child(self.action_guard)
+        execute_action_sequence.add_child(self.action)
+        end_condition_sequence.add_child(self.end_condition)
 
-        if self.action is not None:
-            executor.add_child(self.action)
+        #Recovery
+        recovery_sequence.add_child(self.recovery_guard)
 
-        if self.end_condition is not None:
-            executor.add_child(self.end_condition)
-
-        if self.recovery is not None:
-            subtask.add_child(self.recovery)
+        #Task
+        subtask.add_child(initial_sequence)
+        subtask.add_child(recovery_sequence)
 
         return subtask
+
+    def set_initial_condition(self, initial_condition):
+        self.initial_condition = initial_condition
+
+    def set_action_guard(self, action_guard):
+        self.action_guard = action_guard
+
+    def set_action(self, action):
+        self.action = action
+
+    def set_end_condition(self, end_condition):
+        self.end_condition = end_condition
+
+    def set_recovery_guard(self, recovery_guard):
+        self.recovery_guard = recovery_guard
+
+    def set_recovery(self, recovery):
+        self.recovery = recovery
+
+    def __str__(self):
+        return self.name
