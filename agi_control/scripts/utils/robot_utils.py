@@ -10,7 +10,8 @@ from control_msgs.srv import QueryTrajectoryState
 from play_motion_msgs.msg import PlayMotionAction, PlayMotionGoal
 from trajectory_msgs.msg import JointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
-
+import numpy as np
+from arm_selection import Arm, load_maps
 
 #---------------------------------#
 # Gripper Stuff
@@ -84,3 +85,11 @@ def open_gripper(left_right):
         return True
     else:
         return False
+    
+def get_arm(map_list,next_cube):
+    pose = np.array(([[next_cube.pose.pose.position.x,next_cube.pose.pose.position.y,next_cube.pose.pose.position.z,\
+                    next_cube.pose.pose.orientation.x,next_cube.pose.pose.orientation.y,next_cube.pose.pose.orientation.z]]))
+    arm = Arm(pose, map_list[0], map_list[0])
+    return arm.getArm()
+
+    

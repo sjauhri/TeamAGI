@@ -12,10 +12,9 @@ import py_trees_ros.trees
 from tiago_dual_pick_place.msg import PickUpObjectAction
 from tiago_dual_pick_place.msg import PickUpObjectGoal
 
-# arm selection
 import numpy as np
 from arm_selection import Arm, load_maps
-from utils.robot_utils import get_gripper_status
+from utils.robot_utils import get_gripper_status, get_arm
 
 
 class PickBehaviour(py_trees_ros.actions.ActionClient):
@@ -56,19 +55,12 @@ class PickBehaviour(py_trees_ros.actions.ActionClient):
 
     def initialise(self):
         self.action_goal = self.get_pick_up_goal()
-        gripper_status = get_gripper_status('left')
+        # gripper_status = get_gripper_status('left')
+        gripper_status = get_gripper_status(get_arm(self.map_list,self._blackboard.get("next_cube")))
         self._blackboard.set("gripper_status", gripper_status)
         rospy.logdebug("Initialising PickBehaviour")
         super(PickBehaviour, self).initialise()
 
-    def select_arm(self):
-        # input pose -> selected arm
-        # pose(1,6) -> single string, pose(n,6),n>=2 -> list of strings
-        next_cube = self._blackboard.get("next_cube")
-        pose = np.array(([[next_cube.pose.pose.position.x,next_cube.pose.pose.position.y,next_cube.pose.pose.position.z,\
-                        next_cube.pose.pose.orientation.x,next_cube.pose.pose.orientation.y,next_cube.pose.pose.orientation.z]]))
-        arm = Arm(pose, self.map_list[0], self.map_list[0])
-        return arm.getArm()
 
     def get_pick_up_goal(self):
         """Generates the goal for the action client
@@ -79,9 +71,8 @@ class PickBehaviour(py_trees_ros.actions.ActionClient):
         console.loginfo("Getting pick up goal")
         pick_up_goal = PickUpObjectGoal()
 
-        # test: arm selection
         # pick_up_goal.left_right = 'left'
-        pick_up_goal.left_right = self.select_arm()
+        pick_up_goal.left_right = get_arm(self.map_list,self._blackboard.get("next_cube"))
         console.loginfo("arm:{}".format(pick_up_goal.left_right))
 
         next_cube = self._blackboard.get("next_cube")
