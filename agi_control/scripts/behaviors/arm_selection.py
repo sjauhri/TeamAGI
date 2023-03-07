@@ -1,21 +1,18 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
-According to the subscribed '/cube_pose' topic, 
+According to the inputed '/cube_pose' topic, 
 judge the reachability of the left and right hands, 
 
-Note: map files in the map folder need to change permissions (chmod a+x file)
+Note: map files in the map folder may need to change permissions (chmod a+x file)
 '''
 
 import os
 import numpy as np
-import random
 # import pickle
 import cPickle as pickle
 import timeit
 import h5py
-import torch
-import math
 
 
 def find_maps_folder():
@@ -40,13 +37,6 @@ def load_maps():
     maps_folder = find_maps_folder()
     map_l, map_r = None, None
     for root, dirs, files in os.walk(maps_folder):
-        # if "map_left.h5" in files:
-        #     with h5py.File(os.path.join(root, "map_left.h5"), "r") as f:
-        #         map_l = np.array(f["map_l_c"])
-        # if "map_right.h5" in files:
-        #     with h5py.File(os.path.join(root, "map_right.h5"), "r") as f:
-        #         map_r = np.array(f["map_r_c"])
-
         if "score_map_left.h5" in files:
             with h5py.File(os.path.join(root, "score_map_left.h5"), "r") as f:
                 map_l = np.array(f["map_l_s"])
@@ -67,29 +57,21 @@ class Arm():
         # reach map,poses -> list of scores
         list_score = []
         for p in pos:
-            if left_right=="l":         
+            if left_right == "l":
                 min_x, max_x, = (-1.2, 1.2)
                 min_y, max_y, = (-1.35, 0.6)
                 min_z, max_z, = (-0.35, 2.1)
                 min_roll, max_roll, = (-np.pi, np.pi)
-                min_pitch, max_pitch, = (-np.pi/2, np.pi/2)
+                min_pitch, max_pitch, = (-np.pi / 2, np.pi / 2)
                 min_yaw, max_yaw, = (-np.pi, np.pi)
             else:
                 min_x, max_x, = (-1.2, 1.2)
                 min_y, max_y, = (-0.6, 1.35)
                 min_z, max_z, = (-0.35, 2.1)
                 min_roll, max_roll, = (-np.pi, np.pi)
-                min_pitch, max_pitch, = (-np.pi/2, np.pi/2)
+                min_pitch, max_pitch, = (-np.pi / 2, np.pi / 2)
                 min_yaw, max_yaw, = (-np.pi, np.pi)
 
-            # Voxelize the pose
-            # min_x, max_x, = (map[0, 0], map[-1, 0])
-            # min_y, max_y, = (map[0, 1], map[-1, 1])
-            # min_z, max_z, = (map[0, 2], map[-1, 2])
-            # min_roll, max_roll, = (map[0, 3], map[-1, 3])
-            # min_pitch, max_pitch, = (map[0, 4], map[-1, 4])
-            # min_yaw, max_yaw, = (np.min(map[:, 5]), np.max(map[:, 5]))
-            
             cartesian_res = 0.05
             angular_res = np.pi / 8
 
@@ -99,11 +81,6 @@ class Arm():
             roll_bins = np.ceil((max_roll - min_roll) / angular_res)
             pitch_bins = np.ceil((max_pitch - min_pitch) / angular_res)
             yaw_bins = np.ceil((max_yaw - min_yaw) / angular_res)
-            
-            # print(x_bins,y_bins,z_bins,roll_bins,pitch_bins,yaw_bins)
-            # test = x_bins*y_bins*z_bins*roll_bins*pitch_bins*yaw_bins
-            # print("The product of bins:",test)
-            # print("map shape:", map.shape)
 
             # Define the offset values for indexing the map
             x_ind_offset = y_bins * z_bins * roll_bins * pitch_bins * yaw_bins
@@ -117,33 +94,19 @@ class Arm():
             x_idx = int(np.floor((p[0] - min_x) / cartesian_res))
             y_idx = int(np.floor((p[1] - min_y) / cartesian_res))
             z_idx = int(np.floor((p[2] - min_z) / cartesian_res))
-            roll_idx = int(np.floor(
-                (p[3] - min_roll) / angular_res))
-            pitch_idx = int(
-                np.floor((p[4] - min_pitch) / angular_res))
-            yaw_idx = np.floor(
-                (p[5] - min_yaw) / angular_res).astype(int)
+            roll_idx = int(np.floor((p[3] - min_roll) / angular_res))
+            pitch_idx = int(np.floor((p[4] - min_pitch) / angular_res))
+            yaw_idx = np.floor((p[5] - min_yaw) / angular_res).astype(int)
 
             # Compute the index in the reachability map array
             map_idx = x_idx * x_ind_offset + y_idx * y_ind_offset + z_idx * z_ind_offset + roll_idx  \
             * roll_ind_offset + pitch_idx * pitch_ind_offset + yaw_idx * yaw_ind_offset
             # Use modulo to avoid out of bounds index
-            if map_idx>len(map):
+            if map_idx > len(map):
                 map_idx = map_idx % len(map)
-            
+
             # Get the score from the score map array
             list_score.append(map[np.floor(map_idx).astype(int)])
-            
-            # print("min_x, max_x:", min_x,"~", max_x)
-            # print("min_y, max_y:", min_y,"~", max_y)
-            # print("min_z, max_z:", min_z,"~", max_z)
-            # print("min_roll, max_roll:", min_roll,"~", max_roll)
-            # print("min_pitch, max_pitch:", min_pitch,"~", max_pitch)
-            # print(map[0,4],map[-1,4])
-            # print("min_yaw, max_yaw:",min_yaw,"~", max_yaw)
-            # print(min_, max_)
-        # print(map_idx)
-        # print("-----------------------------------------")
 
         return list_score
 
@@ -165,20 +128,20 @@ class Arm():
         map_right = self.map_r
         list_arm = []
 
-        start = timeit.default_timer()
+        # start = timeit.default_timer()
 
         list_score_l = self.score(map_left, self.pos, "l")
-        list_score_r = self.score(map_right, self.pos,"r")
+        list_score_r = self.score(map_right, self.pos, "r")
 
-        end = timeit.default_timer()
-        print('Running time of get scores: %s Seconds' % (end - start))
+        # end = timeit.default_timer()
+        # print('Running time of get scores: %s Seconds' % (end - start))
 
         for i in range(len(list_score_l)):
             list_arm.append(self.selectArm(
                 list_score_l[i],
                 list_score_r[i]))  # unreachable="", left="left", right="right"
-        print("score_l:", list_score_l)
-        print("score_r", list_score_r)
+        # print("score_l:", list_score_l)
+        # print("score_r", list_score_r)
         # print(arm)
         if len(list_arm) == 1:
             return list_arm[0]
@@ -199,6 +162,6 @@ if __name__ == '__main__':
                        [x, y, z, rx, ry, rz]]))
     maps = load_maps()
 
-    print("shape of input poses:", pose1.shape)
+    # print("shape of input poses:", pose1.shape)
     arm = Arm(pose1, maps[0], maps[1])
     print(arm.getArm())
