@@ -123,7 +123,6 @@ class Arm():
 
     def getArm(self):
         # better reachability score -> select arm
-        # map_left, map_right = self.reachMap()
         map_left = self.map_l
         map_right = self.map_r
         list_arm = []
