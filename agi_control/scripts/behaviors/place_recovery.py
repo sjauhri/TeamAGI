@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import py_trees
-from utils.robot_utils import recover_from_error
+from utils.robot_utils import open_gripper
 
 class PlaceRecovery(py_trees.behaviour.Behaviour):
     """This class can be used to create a recovery behaviour for the place subtask.
@@ -25,9 +25,13 @@ class PlaceRecovery(py_trees.behaviour.Behaviour):
         
         # to do: set the error and recover of place
         for key, value in place_errors.items():
-            if key == "some_error":
-                res = recover_from_error(value)
+            if key == "opened_gripper":
+                res = self.recover_opened_gripper(value)
                 if res == py_trees.common.Status.FAILURE:
                     return py_trees.common.Status.FAILURE
 
         return py_trees.common.Status.SUCCESS
+    
+    def recover_opened_gripper(self, arg):
+        res = not open_gripper(arg)
+        return res
