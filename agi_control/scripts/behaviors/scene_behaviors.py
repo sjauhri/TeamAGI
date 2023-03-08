@@ -47,6 +47,12 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         rospy.loginfo("Connecting to /get_planning_scene service")
         self.scene_srv = rospy.ServiceProxy("/get_planning_scene",
                                             GetPlanningScene)
+
+        self.move_group_l0 = MoveGroupCommander("arm_left")
+        self.move_group_l1 = MoveGroupCommander("arm_left_torso")
+        self.move_group_r0 = MoveGroupCommander("arm_right")
+        self.move_group_r1 = MoveGroupCommander("arm_right_torso")
+
         self.scene_srv.wait_for_service()
 
         rospy.sleep(1)
@@ -56,7 +62,7 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
 
         self.blackboard = Blackboard()
         # Add table to the planning scene
-        table = {"size": [0.60, 0.75, 0.45]}
+        table = {"size": [0.60, 0.75, 0.50]}
         table_pose = PoseStamped()
         table_pose.header.frame_id = "base_footprint"
         table_pose.pose.position.x = 0.5
@@ -65,6 +71,11 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         table_pose.pose.orientation.w = 1.0
         self._scene.add_box("table", table_pose, table["size"])
         rospy.sleep(0.5)
+        self.move_group_l0.set_support_surface_name("table")
+        self.move_group_l1.set_support_surface_name("table")
+        self.move_group_r0.set_support_surface_name("table")
+        self.move_group_r1.set_support_surface_name("table")
+
         try:
             self.table_co = self._scene.get_objects(["table"])["table"]
             return True

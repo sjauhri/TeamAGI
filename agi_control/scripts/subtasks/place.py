@@ -7,10 +7,10 @@ import operator
 from subtasks.subtask import Subtask
 from subtasks.subtask import SubtaskGuard
 
-from behaviors.place_behaviour import PlaceBehavior
+from behaviors.place_behaviour import PlaceBehaviour
 from behaviors.place_recovery import PlaceRecovery
 
-from utils.robot_utils import close_gripper
+from utils.robot_utils import get_gripper_status
 
 task_name = "Place"
 
@@ -27,7 +27,7 @@ blackboard = py_trees.blackboard.Blackboard()
 # Check if the variable goal_cube exists.
 # If the variable goal_cube is None, the guard will fail and the subtask will not be executed.
 guard_has_cube = py_trees.blackboard.CheckBlackboardVariable(
-    name="IC - Has Goal Cube | Place", variable_name="goal_cube")
+    name="IC - Has Target Location | Place", variable_name="target_location")
 
 #============================================================================
 # Action Guards
@@ -40,9 +40,9 @@ guard_has_cube = py_trees.blackboard.CheckBlackboardVariable(
 # Check if the gripper is closed.
 # If the gripper is not closed, the guard will fail and the subtask will not be executed.
 guard_gripper_closed = py_trees.blackboard.CheckBlackboardVariable(
-    name="AG - Gripper Closed | Place",
+    name="AG - Gripper With Cube | Place",
     variable_name="gripper_status",
-    expected_value="closed",
+    expected_value="with_cube",
     comparison_operator=operator.eq)
 
 #============================================================================
@@ -50,7 +50,7 @@ guard_gripper_closed = py_trees.blackboard.CheckBlackboardVariable(
 # Define the action behaviour of the subtask.
 # If the action fails, the subtask will go to the recovery behaviour.
 #============================================================================
-action = PlaceBehavior("Place")
+action = PlaceBehaviour("Place")
 
 #============================================================================
 # End conditions
