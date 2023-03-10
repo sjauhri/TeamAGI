@@ -34,8 +34,8 @@ class PCLHandler:
     def __init__(self):
         n_max = 30
         distance = 0.035
-        thr_max = 1300
-        thr_min = 750
+        thr_max = 1500
+        thr_min = 800
         self.cluster_handler = ClusterHandler(n_max, distance, thr_min, thr_max)
 
         self.node = rospy.init_node('pcl_handling', anonymous=True)
@@ -61,8 +61,12 @@ class PCLHandler:
                                               queue_size=10)
 
         self.pub_extracted = rospy.Publisher('PerceptionAlgoExtracted',
-                                        PointCloud2,
-                                        queue_size=10)
+                                              PointCloud2,
+                                              queue_size=10)
+
+        self.pub_cube_poses = rospy.Publisher('cube_poses',
+                                              PoseArray,
+                                              queue_size=10)
 
 
         self.pub1_edge = rospy.Publisher('Edge_point1',
@@ -90,9 +94,7 @@ class PCLHandler:
                                          PointCloud2,
                                          queue_size=10)
 
-        self.pub3_pose = rospy.Publisher('cube_poses',
-                                         PoseArray,
-                                         queue_size=10)
+
         # self.pub_plane = rospy.Publisher('Plane_rk', Plane, queue_size=10)
         self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(1))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -144,8 +146,8 @@ class PCLHandler:
         # new structure
 
         fixed_n_clusters = True
-        if fixed_n_clusters:
-            n_clusters_fixed = 10  # TODO make config!
+        n_clusters_fixed = 15  # TODO make config!
+        if fixed_n_clusters:   
             cube_poses, color_names, confidences = self.cluster_handler.perception_fixed_clusters(cloud_plane, n_clusters_fixed)
             # perc_msg = self.generate_msg(cube_poses, color_names, confidences)
         else:
@@ -157,7 +159,7 @@ class PCLHandler:
         print("cluster handler done!")
         print("##########################################################################")
         perc_msg = self.generate_msg(cube_poses, color_names, confidences)
-        self.pub3_pose.publish(cube_poses)
+        self.pub_cube_poses.publish(cube_poses)
         self.pub_perception.publish(perc_msg)
         print("published")
 

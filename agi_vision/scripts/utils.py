@@ -4,6 +4,8 @@ import pcl
 from geometry_msgs.msg import Pose
 import rospy
 from tf.transformations import quaternion_from_euler
+
+
 # kmeans clustering    
 def k_means_clustering(data,n_clusters,max_iterations):
     kmeans = KMeans(n_clusters=n_clusters, random_state=0, max_iter=max_iterations).fit(data)
@@ -36,7 +38,6 @@ def cluster(LEAF_SIZE, cloud_points, Max_Cluster):
        
         
     return cluster_indices
-
 
 
 # XYZRGB PointCloud to XYZ PointCloud
@@ -137,7 +138,7 @@ def get_pose_icp(A, B):
     return pose    
 
 
-def generate_source_cloud(position,size):
+def generate_source_cloud(position, size):
     source_cloud=pcl.PointCloud_PointXYZRGB(size)
     source_cloud=np.array(source_cloud)
     for i in range(size):
@@ -151,6 +152,3 @@ def generate_source_cloud(position,size):
 
     source_cloud=pcl.PointCloud_PointXYZRGB(source_cloud)
     return source_cloud
-
-
-

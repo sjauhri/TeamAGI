@@ -19,7 +19,7 @@ class ClusterHandler:
         self.thr_max = thr_max
 
     def __call__(self, pointcloud):
-        cube_poses, color_names, confidences, remaining_cloud, extracted_points = self.extract_clusters(pointcloud)
+        cube_poses, color_names, confidences, remaining_cloud, extracted_points = self.perception_extract_clusters(pointcloud)
         return cube_poses, color_names, confidences, remaining_cloud, extracted_points
     
 
@@ -28,7 +28,7 @@ class ClusterHandler:
         cube_poses = PoseArray()
         color_names = []
         confidences = []
-        model_cloud=utils.generate_source_cloud([0,0,0,100],3500)
+        model_cloud = utils.generate_source_cloud([0, 0, 0, 100], 3500)
         # clustering
         
         cluster_indices, centroids = utils.k_means_clustering(np.array(pointcloud), n_clusters, 1000)
@@ -42,21 +42,21 @@ class ClusterHandler:
             #
             #interest_point_list.append(edge_points)
             #
-            cube_poses.poses.append(self._get_pose_icp(model_cloud,clustered_points,centroids[i]))
+            icp_pose, icp_confidence = self._get_pose_icp(model_cloud, clustered_points, centroids[i], get_confidence=True)
+            cube_poses.poses.append(icp_pose)
 
             # cube_poses.poses.append(self._get_pose(clustered_points, centroids[i]))
             color_names.append(self._get_color(clustered_points))
-            confidences.append(self._get_confidence(clustered_points))    
+            confidences.append(icp_confidence)
+            # confidences.append(self._get_confidence(clustered_points)) old dummy version   
         return cube_poses, color_names, confidences
 
 
-    def extract_clusters(self, origin_cloud):
-
-        print("original size")
-
+    def perception_extract_clusters(self, origin_cloud):
         remaining_cloud = origin_cloud
         # print(remaining_cloud)
         # print(np.array(remaining_cloud).shape)
+        
         # for PerceptionMSG
         cube_poses = PoseArray()
         color_names = []
@@ -73,13 +73,10 @@ class ClusterHandler:
             cluster_indices, centroids = utils.k_means_clustering(np.array(remaining_cloud), n_init, 1000)
 
             for i in range(n_init):
-                
                 # one cluster is smaller than threshold  
                 if len(cluster_indices[i]) < 800:
                     all_above_min = False
 
-                        
-                
                 # check if all clusters are smaller then thr_max?
                 if len(cluster_indices[i]) > 1400:
                     one_above_max = True
@@ -93,19 +90,27 @@ class ClusterHandler:
 
         extracted_points = pcl.PointCloud_PointXYZRGB()
         extracted = 0
+        # icp 
+        model_cloud = utils.generate_source_cloud([0, 0, 0, 100], 3500)
 
         current_n = n_init
-        for i in range(6):
+        extract_range = 6  # hyperparameter 
+        for i in range(extract_range):
             # old_n = current_n
             current_n = n_init - extracted + 1 - i 
             if current_n <= 0:
                 break
-            # we will overshoot with one cluster so n-1 
-            # loop two times !!
-           
 
             print("clusters")
             print(current_n)
+
+            ########
+            # cluster_indices, centroids = utils.k_means_clustering(np.array(pointcloud), n_clusters, 1000)
+
+            # for i in range(n_clusters):
+            #     clustered_points = pointcloud.extract(cluster_indices[i],
+            #                                        negative=False)
+            #####
 
             print("find and extract good clusters")
             tmp_remaining_cloud = pcl.PointCloud_PointXYZRGB()
@@ -115,19 +120,24 @@ class ClusterHandler:
             # whole remaining cloud gets split up
             for i in range(len(cluster_indices)):
                 # TODO add color as extra heuristics!
+                # TODO add confidence as heuristics?
 
                 if self._no_neighbors(i, centroids) and self._n_points_in_threshold(cluster_indices[i]):
                     # extraction for later vis, not really needed 
                     ext_p = extracted_points.to_array()
                     full_p = np.concatenate((ext_p, remaining_cloud.extract(cluster_indices[i], negative=False).to_array()))
-                    # color is lost here...
+                    # color is lost when publishing extracted points...
                     extracted_points.from_array(full_p)
 
                     clustered_points = remaining_cloud.extract(cluster_indices[i], negative=False)
-                
-                    cube_poses.poses.append(self._get_pose(clustered_points, centroids[i]))
+                    # getting pose and confidence from icp
+                    icp_pose, icp_confidence = self._get_pose_icp(model_cloud, clustered_points, centroids[i], get_confidence=True)
+
+                    cube_poses.poses.append(icp_pose)
+                    # cube_poses.poses.append(self._get_pose(clustered_points, centroids[i]))
                     color_names.append(self._get_color(clustered_points))
-                    confidences.append(self._get_confidence(clustered_points))
+                    confidences.append(icp_confidence)
+                    # confidences.append(self._get_confidence(clustered_points))
                     
                     extracted += 1
                     print("extracted")
@@ -146,6 +156,7 @@ class ClusterHandler:
         print("number of extracted cubes:")
         print(extracted)
         print(color_names)
+        print(confidences)
         ######### end of finding iterations ##########
 
         return cube_poses, color_names, confidences, remaining_cloud, extracted_points
@@ -160,7 +171,7 @@ class ClusterHandler:
         pose = utils.get_pose(centroid, cluster_pcl[best_point])
         return pose 
 
-    def _get_pose_icp(self,model_cloud,target_cloud,centroid):
+    def _get_pose_icp(self, model_cloud, target_cloud, centroid, get_confidence=False):
         target_cloud=pcl.PointCloud_PointXYZRGB(np.array(target_cloud)-centroid)
         icp=utils.XYZRGB_to_XYZ(model_cloud).make_IterativeClosestPoint()  
         converged, T, estimate, confidence = icp.icp(
@@ -173,6 +184,8 @@ class ClusterHandler:
         keypoint=T.dot(keypoint)+centroid
         new_centroid=T.dot(new_centroid)+centroid  
         pose=utils.get_pose_icp(new_centroid,keypoint)
+        if get_confidence:
+            return pose, confidence
         return pose
 
     def _get_color(self, cluster_pcl):
