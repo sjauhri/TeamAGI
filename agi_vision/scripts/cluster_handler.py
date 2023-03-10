@@ -29,11 +29,13 @@ class ClusterHandler:
         color_names = []
         confidences = []
         # clustering
+        
         cluster_indices, centroids = utils.k_means_clustering(np.array(pointcloud), n_clusters, 1000)
 
         for i in range(n_clusters):
             clustered_points = pointcloud.extract(cluster_indices[i],
                                                    negative=False)
+
             edge_points, best_point, indices = utils.find_edge(
                 clustered_points, centroids[i])
             #
@@ -47,82 +49,87 @@ class ClusterHandler:
 
 
     def extract_clusters(self, origin_cloud):
-        extracted_points = pcl.PointCloud_PointXYZRGB()
-        extracted = 0
+
         print("original size")
 
         remaining_cloud = origin_cloud
-        print(remaining_cloud)
-
+        # print(remaining_cloud)
+        # print(np.array(remaining_cloud).shape)
         # for PerceptionMSG
         cube_poses = PoseArray()
         color_names = []
         confidences = []
 
-        for i in range(2):
-            current_n = 1
-            print("number of clusters")
-            print(current_n)
-            # old_n = current_n
+        n_init = 1
+        # start with overshooting
+        print("adding number of clusters to overshoot")
+        one_above_max = True
+        all_above_min = True
+        while one_above_max and all_above_min:
+            n_init += 1
+            # clustering
+            cluster_indices, centroids = utils.k_means_clustering(np.array(remaining_cloud), n_init, 1000)
 
+            for i in range(n_init):
+                
+                # one cluster is smaller than threshold  
+                if len(cluster_indices[i]) < 800:
+                    all_above_min = False
+
+                        
+                
+                # check if all clusters are smaller then thr_max?
+                if len(cluster_indices[i]) > 1400:
+                    one_above_max = True
+                    break
+                else:
+                    one_above_max = False
+
+            if n_init >= self.n_max:
+                do_add = False
+                break
+
+        extracted_points = pcl.PointCloud_PointXYZRGB()
+        extracted = 0
+
+        current_n = n_init
+        for i in range(6):
+            # old_n = current_n
+            current_n = n_init - extracted + 1 - i 
+            if current_n <= 0:
+                break
             # we will overshoot with one cluster so n-1 
             # loop two times !!
-            print("adding number of clusters to overshoot")
-            one_above_max = True
-            all_above_min = True
-            while one_above_max and all_above_min:
-                current_n += 1
-                # clustering
-                cluster_indices, centroids = utils.k_means_clustering(np.array(remaining_cloud), current_n, 1000)
-                for i in range(current_n):
-                   
-                    # one cluster is smaller than threshold  
-                    if len(cluster_indices[i]) < self.thr_min:
-                       all_above_min = False
-                       if i == 1:
-                           current_n -= 1 
-                            
-                    
-                    # check if all clusters are smaller then thr_max?
-                    if len(cluster_indices[i]) > 1300:
-                        one_above_max = True
-                        break
-                    else:
-                        one_above_max = False
-
-                if current_n >= self.n_max:
-                    do_add = False
-                    break
+           
 
             print("clusters")
             print(current_n)
 
-
             print("find and extract good clusters")
             tmp_remaining_cloud = pcl.PointCloud_PointXYZRGB()
             cluster_indices, centroids = utils.k_means_clustering(np.array(remaining_cloud), current_n, 1000)
-            print(len(cluster_indices))
-            print(len(centroids))
+            # print(len(cluster_indices))
+            # print(len(centroids))
             # whole remaining cloud gets split up
             for i in range(len(cluster_indices)):
                 # TODO add color as extra heuristics!
-                print(len(cluster_indices[i]))
 
                 if self._no_neighbors(i, centroids) and self._n_points_in_threshold(cluster_indices[i]):
                     # extraction for later vis, not really needed 
                     ext_p = extracted_points.to_array()
                     full_p = np.concatenate((ext_p, remaining_cloud.extract(cluster_indices[i], negative=False).to_array()))
+                    # color is lost here...
                     extracted_points.from_array(full_p)
 
                     clustered_points = remaining_cloud.extract(cluster_indices[i], negative=False)
-                    # color in remaining cloud i lost!!!!!!!
+                
                     cube_poses.poses.append(self._get_pose(clustered_points, centroids[i]))
                     color_names.append(self._get_color(clustered_points))
                     confidences.append(self._get_confidence(clustered_points))
                     
                     extracted += 1
-                    # print("extracted")
-                    # print(extracted)
+                    print("extracted")
+                    print(extracted)
                 else:
                     # print("not extracted")
                     remain_p = tmp_remaining_cloud.to_array()
@@ -136,6 +143,7 @@ class ClusterHandler:
         # print(cluster_indices[i])
         print("number of extracted cubes:")
         print(extracted)
+        print(color_names)
         ######### end of finding iterations ##########
 
         return cube_poses, color_names, confidences, remaining_cloud, extracted_points
