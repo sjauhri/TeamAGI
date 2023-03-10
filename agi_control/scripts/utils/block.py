@@ -192,9 +192,9 @@ class BlockManager():
         for block in self._blocks.values():
             if self._is_close(block.pose, pose, threshold):
                 # checks color of identified block, when a proper one is given
-                if color not in ["red", "blue", "yellow", "green"
-                                 ] or block.color == color:
-                    return block.id
+                # if color not in ["red", "blue", "yellow", "green"
+                #                  ] or block.color == color:
+                return block.id
         return None
 
     def _is_close(self, pose1, pose2, threshold):

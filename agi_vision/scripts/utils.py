@@ -116,3 +116,41 @@ def get_pose(A, B):
     pose.orientation.z = q[2]
     pose.orientation.w = q[3]
     return pose
+
+
+def get_pose_icp(A, B):
+    A=np.array(A)[0:3]
+    B=np.array(B)[0:3]
+    C=B-A
+    X=np.arctan2(C[2], C[1])
+    Y=np.arctan2(C[0], C[2])
+    Z=np.arctan2(C[1], C[0])
+    q=quaternion_from_euler(Y,X,Z)
+    pose = Pose()
+    pose.position.x = A[0]
+    pose.position.y = A[1]
+    pose.position.z = A[2]
+    pose.orientation.x = q[0]
+    pose.orientation.y = q[1]
+    pose.orientation.z = q[2]
+    pose.orientation.w = q[3]
+    return pose    
+
+
+def generate_source_cloud(position,size):
+    source_cloud=pcl.PointCloud_PointXYZRGB(size)
+    source_cloud=np.array(source_cloud)
+    for i in range(size):
+        point=position+np.random.uniform(-0.0225,0.0225,size=4)
+        if (np.abs(point[0:3]-position[0:3])<0.0225).all():
+            surfaces=[2]                        # [0,1,2] for 3 surfaces in xyz direction
+            axis=np.random.choice(surfaces)            
+            value=position[axis]+0.0225
+            point[axis]=value
+        source_cloud[i]=point
+
+    source_cloud=pcl.PointCloud_PointXYZRGB(source_cloud)
+    return source_cloud
+
+
+

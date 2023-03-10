@@ -11,6 +11,7 @@ from behaviors import robot_behaviors
 from behaviors import scene_behaviors
 from subtasks.get_cube import create_get_cube_subtask
 from subtasks.pick import create_pick_subtask
+from subtasks.place import create_place_subtask
 
 
 def agi_ctrl_root():
@@ -26,7 +27,7 @@ def agi_ctrl_root():
     data2bb.add_child(scene_behaviors.GetSceneBlocks())
 
     # Tasks selector
-    tasks = py_trees.composites.Selector(name="Tasks")
+    tasks = py_trees.composites.Sequence(name="Tasks")
     # Stack block sequence
     pick_place = py_trees.composites.Sequence(name="Pick and Place")
 
@@ -36,16 +37,22 @@ def agi_ctrl_root():
     # Idle behavior
     idle = py_trees.behaviours.Running(name="Idle")
 
+    # Ready pose robot
+    ready_pose = robot_behaviors.ReadyPose(name="Ready Pose")
+
     # Get cube subtask
     get_cube_subtask = create_get_cube_subtask()
     # Pick subtask
     pick_subtask = create_pick_subtask()
 
+    # Place subtask
+    place_subtask = create_place_subtask()
+
     pick_place.add_child(get_cube_subtask)
     pick_place.add_child(pick_subtask)
-    #pick_place.add_child(place_block)
+    pick_place.add_child(place_subtask)
     tasks.add_child(pick_place)
-    tasks.add_child(idle)
+    tasks.add_child(ready_pose)
     root.add_child(data2bb)
     root.add_child(tasks)
 

@@ -28,6 +28,7 @@ class ClusterHandler:
         cube_poses = PoseArray()
         color_names = []
         confidences = []
+        model_cloud=utils.generate_source_cloud([0,0,0,100],3500)
         # clustering
         
         cluster_indices, centroids = utils.k_means_clustering(np.array(pointcloud), n_clusters, 1000)
@@ -41,8 +42,9 @@ class ClusterHandler:
             #
             #interest_point_list.append(edge_points)
             #
+            cube_poses.poses.append(self._get_pose_icp(model_cloud,clustered_points,centroids[i]))
 
-            cube_poses.poses.append(self._get_pose(clustered_points, centroids[i]))
+            # cube_poses.poses.append(self._get_pose(clustered_points, centroids[i]))
             color_names.append(self._get_color(clustered_points))
             confidences.append(self._get_confidence(clustered_points))    
         return cube_poses, color_names, confidences
@@ -157,6 +159,21 @@ class ClusterHandler:
         #
         pose = utils.get_pose(centroid, cluster_pcl[best_point])
         return pose 
+
+    def _get_pose_icp(self,model_cloud,target_cloud,centroid):
+        target_cloud=pcl.PointCloud_PointXYZRGB(np.array(target_cloud)-centroid)
+        icp=utils.XYZRGB_to_XYZ(model_cloud).make_IterativeClosestPoint()  
+        converged, T, estimate, confidence = icp.icp(
+            utils.XYZRGB_to_XYZ(model_cloud),utils.XYZRGB_to_XYZ(target_cloud), max_iter=200) 
+        keypoint=np.ones(4)
+        keypoint[0:3]= [0,-0.0225,0]
+        
+        new_centroid=np.ones(4)
+        new_centroid[0:3]=np.array([0,0,0])
+        keypoint=T.dot(keypoint)+centroid
+        new_centroid=T.dot(new_centroid)+centroid  
+        pose=utils.get_pose_icp(new_centroid,keypoint)
+        return pose
 
     def _get_color(self, cluster_pcl):
         color_scores, color_names = self._unpack_color(cluster_pcl)

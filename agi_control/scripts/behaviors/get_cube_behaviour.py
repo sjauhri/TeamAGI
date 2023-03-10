@@ -105,8 +105,12 @@ class GetCubeBehaviour(py_trees.behaviour.Behaviour):
     def update(self):
         # Get the next cube to pick
         next_cube = self._action_policy.get_next_cube()
+
+        # Get the target location for the next cube
+        target_location = self._action_policy.get_target_location()
         if next_cube is None:
             return py_trees.common.Status.FAILURE
         else:
             self._blackboard.set("next_cube", next_cube)
+            self._blackboard.set("target_location", target_location)
             return py_trees.common.Status.SUCCESS

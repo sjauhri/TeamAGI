@@ -15,6 +15,12 @@ from tiago_dual_pick_place.msg import PlaceAutoObjectGoal
 from tiago_dual_pick_place.msg import PickUpObjectAction
 from tiago_dual_pick_place.msg import PickUpObjectGoal
 
+from play_motion_msgs.msg import PlayMotionAction, PlayMotionGoal
+from actionlib import SimpleActionClient
+
+from utils.robot_utils import open_gripper
+from moveit_commander import PlanningSceneInterface
+
 
 class PlaceBlock(py_trees_ros.actions.ActionClient):
     """Action Client for placing a block
@@ -66,3 +72,41 @@ class PlaceBlock(py_trees_ros.actions.ActionClient):
             blackboard.cubes_in_stack.append(blackboard.next_cube)
             blackboard.set("next_cube", None)
         return ret
+
+
+class ReadyPose(py_trees.behaviour.Behaviour):
+    """Behavior to set the robot in a ready pose
+    
+    This behavior sets the robot in a ready pose. It is used to wait for the
+    next cube to be placed.
+    """
+
+    def __init__(self, name="Ready Pose"):
+        super(ReadyPose, self).__init__(name=name)
+
+    def initialise(self):
+        scene = PlanningSceneInterface()
+        console.loginfo("Setting robot in ready pose")
+        self.play_m_as = SimpleActionClient('/play_motion', PlayMotionAction)
+        pmg = PlayMotionGoal()
+        pmg.motion_name = 'pregrasp_left'
+        pmg.skip_planning = False
+        self.play_m_as.send_goal_and_wait(pmg)
+
+        pmg = PlayMotionGoal()
+        pmg.motion_name = 'pregrasp_right'
+        pmg.skip_planning = False
+        self.play_m_as.send_goal_and_wait(pmg)
+        rospy.loginfo("Done.")
+
+        console.loginfo("Open gripper")
+        open_gripper("left")
+        open_gripper("right")
+
+        # Remove attached objects from gripper
+        scene.remove_attached_object()
+
+        rospy.loginfo("Robot prepared.")
+
+    def update(self):
+        return py_trees.common.Status.SUCCESS
