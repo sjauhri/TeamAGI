@@ -141,8 +141,8 @@ class Arm():
             list_arm.append(self.selectArm(
                 list_score_l[i],
                 list_score_r[i]))  # unreachable="", left="left", right="right"
-        print("score_l:", list_score_l)
-        print("score_r", list_score_r)
+        # print("score_l:", list_score_l)
+        # print("score_r", list_score_r)
         # print(arm)
         if len(list_arm) == 1:
             return list_arm[0]
