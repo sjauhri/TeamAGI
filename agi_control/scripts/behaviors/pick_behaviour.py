@@ -13,7 +13,6 @@ from tiago_dual_pick_place.msg import PickUpObjectAction
 from tiago_dual_pick_place.msg import PickUpObjectGoal
 
 import numpy as np
-from arm_selection import Arm, load_maps
 from utils.robot_utils import get_gripper_status, get_arm
 
 
@@ -23,7 +22,6 @@ class PickBehaviour(py_trees_ros.actions.ActionClient):
     This class is a wrapper around the ActionClient class from py_trees_ros.
     It generates the goal for the action client and sets the action spec.
     """
-    maps = None
 
     def __init__(self, name="Pick Block"):
         """Constructor for PickBlock
@@ -45,10 +43,6 @@ class PickBehaviour(py_trees_ros.actions.ActionClient):
         Returns:
             bool: True if successful
         """
-        # the reach map is only initialezed once
-        if PickBehaviour.maps is None:
-            PickBehaviour.maps = load_maps()
-        self.map_list = PickBehaviour.maps
 
         self._blackboard = py_trees.blackboard.Blackboard()
         return super(PickBehaviour, self).setup(timeout)
@@ -57,7 +51,7 @@ class PickBehaviour(py_trees_ros.actions.ActionClient):
         self.action_goal = self.get_pick_up_goal()
         # gripper_status = get_gripper_status('left')
         gripper_status = get_gripper_status(
-            get_arm(self.map_list, self._blackboard.get("next_cube")))
+            get_arm(self._blackboard.get("next_cube")))
         self._blackboard.set("gripper_status", gripper_status)
         rospy.logdebug("Initialising PickBehaviour")
         super(PickBehaviour, self).initialise()

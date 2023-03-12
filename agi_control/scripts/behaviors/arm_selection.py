@@ -15,45 +15,49 @@ import timeit
 import h5py
 
 
-def find_maps_folder():
-    # Search in current directory and upper three levels
-    for i in range(4):
-        parent_dirs = os.path.join(*([os.pardir] * i) + [''])
-        maps_path = os.path.join(os.getcwd(), parent_dirs, "maps")
-        if os.path.exists(maps_path):
-            return maps_path
-
-    # Search in lower three levels
-    for dirpath, dirnames, filenames in os.walk("."):
-        if "maps" in dirnames:
-            return os.path.join(dirpath, "maps")
-
-    # If maps folder is not found, return path "/src/TeamAGI/agi_control/scripts/maps"
-    return os.path.join(os.getcwd(), "src", "TeamAGI", "agi_control",
-                        "scripts", "maps")
-
-
-def load_maps():
-    maps_folder = find_maps_folder()
-    map_l, map_r = None, None
-    for root, dirs, files in os.walk(maps_folder):
-        if "score_map_left.h5" in files:
-            with h5py.File(os.path.join(root, "score_map_left.h5"), "r") as f:
-                map_l = np.array(f["map_l_s"])
-        if "score_map_right.h5" in files:
-            with h5py.File(os.path.join(root, "score_map_right.h5"), "r") as f:
-                map_r = np.array(f["map_r_s"])
-    return [map_l, map_r]
-
-
 class Arm():
+    # class-level variable to keep track of whether maps have been loaded or not
+    _maps_loaded = False  
 
-    def __init__(self, pose, map_l, map_r):
+    def __init__(self, pose):
         self.pos = pose
-        self.map_l = map_l
-        self.map_r = map_r
+        if not Arm._maps_loaded:  # if maps haven't been loaded yet, load them
+            Arm.map_l, Arm.map_r = self.load_maps()
+            # set class-level variable to True to indicate that maps have been loaded
+            Arm._maps_loaded = True  
 
-    def score(self, map, pos, left_right):
+    def find_maps_folder(self):
+        # Search in current directory and upper three levels
+        for i in range(4):
+            parent_dirs = os.path.join(*([os.pardir] * i) + [''])
+            maps_path = os.path.join(os.getcwd(), parent_dirs, "maps")
+            if os.path.exists(maps_path):
+                return maps_path
+
+        # Search in lower three levels
+        for dirpath, dirnames, filenames in os.walk("."):
+            if "maps" in dirnames:
+                return os.path.join(dirpath, "maps")
+
+        # If maps folder is not found, return path "/src/TeamAGI/agi_control/scripts/maps"
+        return os.path.join(os.getcwd(), "src", "TeamAGI", "agi_control",
+                            "scripts", "maps")
+
+    def load_maps(self):
+        maps_folder = self.find_maps_folder()
+        map_l, map_r = None, None
+        for root, dirs, files in os.walk(maps_folder):
+            if "score_map_left.h5" in files:
+                with h5py.File(os.path.join(root, "score_map_left.h5"),
+                               "r") as f:
+                    map_l = np.array(f["map_l_s"])
+            if "score_map_right.h5" in files:
+                with h5py.File(os.path.join(root, "score_map_right.h5"),
+                               "r") as f:
+                    map_r = np.array(f["map_r_s"])
+        return map_l, map_r
+
+    def getScore(self, map, pos, left_right):
         # reach map,poses -> list of scores
         list_score = []
         for p in pos:
@@ -123,14 +127,12 @@ class Arm():
 
     def getArm(self):
         # better reachability score -> select arm
-        map_left = self.map_l
-        map_right = self.map_r
         list_arm = []
 
         # start = timeit.default_timer()
 
-        list_score_l = self.score(map_left, self.pos, "l")
-        list_score_r = self.score(map_right, self.pos, "r")
+        list_score_l = self.getScore(Arm.map_l, self.pos, "l")
+        list_score_r = self.getScore(Arm.map_r, self.pos, "r")
 
         # end = timeit.default_timer()
         # print('Running time of get scores: %s Seconds' % (end - start))
@@ -139,8 +141,8 @@ class Arm():
             list_arm.append(self.selectArm(
                 list_score_l[i],
                 list_score_r[i]))  # unreachable="", left="left", right="right"
-        # print("score_l:", list_score_l)
-        # print("score_r", list_score_r)
+        print("score_l:", list_score_l)
+        print("score_r", list_score_r)
         # print(arm)
         if len(list_arm) == 1:
             return list_arm[0]
@@ -159,8 +161,18 @@ if __name__ == '__main__':
     pose1 = np.array(([[x, y, z, rx, ry, rz]]))
     pose2 = np.array(([[x, y, z, rx, ry, rz], [x, y, z, rx, ry, rz],
                        [x, y, z, rx, ry, rz]]))
-    maps = load_maps()
+    # maps = load_maps()
 
-    # print("shape of input poses:", pose1.shape)
-    arm = Arm(pose1, maps[0], maps[1])
+    print("shape of input poses:", pose1.shape)
+    start = timeit.default_timer()
+    arm = Arm(pose1)
     print(arm.getArm())
+    end = timeit.default_timer()
+    print('Running time of get scores: %s Seconds' % (end - start))
+    
+    print("shape of input poses:", pose1.shape)
+    start = timeit.default_timer()
+    arm = Arm(pose1)
+    print(arm.getArm())
+    end = timeit.default_timer()
+    print('Running time of get scores: %s Seconds' % (end - start))

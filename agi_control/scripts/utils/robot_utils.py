@@ -10,7 +10,7 @@ from control_msgs.msg import JointTolerance
 from control_msgs.msg import JointTrajectoryControllerState
 from play_motion_msgs.msg import PlayMotionAction, PlayMotionGoal
 import numpy as np
-from behaviors.arm_selection import Arm, load_maps
+from behaviors.arm_selection import Arm
 
 
 #---------------------------------#
@@ -94,8 +94,8 @@ def open_gripper(left_right):
         return False
 
 
-def get_arm(map_list, next_cube):
+def get_arm(next_cube):
     pose = np.array(([[next_cube.pose.pose.position.x,next_cube.pose.pose.position.y,next_cube.pose.pose.position.z,\
                     next_cube.pose.pose.orientation.x,next_cube.pose.pose.orientation.y,next_cube.pose.pose.orientation.z]]))
-    arm = Arm(pose, map_list[0], map_list[0])
+    arm = Arm(pose)
     return arm.getArm()
