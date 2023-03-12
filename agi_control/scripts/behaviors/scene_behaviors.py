@@ -24,6 +24,7 @@ from utils.block import BlockManager
 from utils.robot_utils import get_gripper_status, get_arm
 
 import pdb
+import time
 
 
 class GetSceneBlocks(py_trees.behaviour.Behaviour):
@@ -40,6 +41,9 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
             name (str): The name of the behavior
         """
         super(GetSceneBlocks, self).__init__(name=name)
+        self.update_requested = False
+        self.perception_data_list = []
+        self.prev_perception_data = None
 
     def setup(self, timeout):
 
@@ -85,36 +89,41 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         # cube_detections = self.__get_published_poses()
         perception_data = self._get_published_perception()
 
-        # for pose in cube_detections.poses:
-        for i, pose in enumerate(perception_data.pose_array.poses):
-            pose_stamp = PoseStamped()
-            pose_stamp.header.frame_id = "base_footprint"
-            pose_stamp.pose = pose
+        if self.prev_perception_data is None:
+            self.prev_perception_data = perception_data
 
-            self.block_manager.manage(pose_stamp,
-                                      confidence=perception_data.confidence[i],
-                                      color=perception_data.color_names[i])
+        if perception_data == self.prev_perception_data:
+            self.update_requested = True
+        else:
+            self.prev_perception_data = perception_data
 
-        console.loginfo("Found {} cubes in the scene".format(
-            perception_data.size))
-
-        self.__update_contact_objects()
-
-        cubes = self.block_manager.get_blocks()
-
-        # Store the cubes in the blackboard
-        self.blackboard.set("scene_cubes", cubes)
-
-        # TEMPORARY NEED TO BE REMOVED
-        next_cube = self.blackboard.get("next_cube")
-        if next_cube is not None:
-            left_right = next_cube.left_right
-            gripper_status = get_gripper_status(left_right)
-            self.blackboard.set("gripper_status", gripper_status)
-
-        print(py_trees.blackboard.Blackboard())
+        console.loginfo("Received perception data")
 
     def update(self):
+        if self.update_requested:
+            perception_data = self._get_published_perception()
+
+            for i, pose in enumerate(perception_data.pose_array.poses):
+                pose_stamp = PoseStamped()
+                pose_stamp.header.frame_id = "base_footprint"
+                pose_stamp.pose = pose
+
+                self.block_manager.manage(
+                    pose_stamp,
+                    confidence=perception_data.confidence[i],
+                    color=perception_data.color_names[i])
+
+            console.loginfo("Updated scene blocks")
+
+            self.__update_contact_objects()
+
+            cubes = self.block_manager.get_blocks()
+
+            # Store the cubes in the blackboard
+            self.blackboard.set("scene_cubes", cubes)
+
+            # Reset update_requested to False
+            self.update_requested = False
 
         return py_trees.common.Status.SUCCESS
 

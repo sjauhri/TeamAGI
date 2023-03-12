@@ -94,12 +94,14 @@ class ReadyPose(py_trees.behaviour.Behaviour):
         pmg = PlayMotionGoal()
         pmg.motion_name = 'pick_final_pose_l'
         pmg.skip_planning = False
-        self.play_m_as.send_goal(pmg)
+        # self.play_m_as.send_goal(pmg)
+        self.play_m_as.send_goal_and_wait(pmg)
 
         pmg = PlayMotionGoal()
         pmg.motion_name = 'pick_final_pose_r'
         pmg.skip_planning = False
-        self.play_m_as.send_goal(pmg)
+        # self.play_m_as.send_goal(pmg)
+        self.play_m_as.send_goal_and_wait(pmg)
         rospy.loginfo("Done.")
 
         console.loginfo("Open gripper")
