@@ -94,8 +94,8 @@ def open_gripper(left_right):
         return False
 
 
-def get_arm(next_cube):
-    pose = np.array(([[next_cube.pose.pose.position.x,next_cube.pose.pose.position.y,next_cube.pose.pose.position.z,\
-                    next_cube.pose.pose.orientation.x,next_cube.pose.pose.orientation.y,next_cube.pose.pose.orientation.z]]))
+def get_arm(cube):
+    pose = np.array(([[cube.pose.pose.position.x,cube.pose.pose.position.y,cube.pose.pose.position.z,\
+                    cube.pose.pose.orientation.x,cube.pose.pose.orientation.y,cube.pose.pose.orientation.z]]))
     arm = Arm(pose)
     return arm.getArm()
