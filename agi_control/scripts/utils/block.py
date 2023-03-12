@@ -7,10 +7,7 @@ from moveit_msgs.msg import Grasp
 from moveit_commander import PlanningSceneInterface
 import rospy
 
-from behaviors.arm_selection import load_maps
 from utils.robot_utils import get_arm
-
-map_list = load_maps()
 
 
 class Block():
@@ -34,7 +31,7 @@ class Block():
         self._collision_object = self._scene.get_objects([self._id])[self._id]
         self._properties = {}
         self._confidence = confidence
-        self._left_right = get_arm(map_list, self)
+        self._left_right = get_arm(self)
 
     @property
     def id(self):
@@ -181,7 +178,7 @@ class BlockManager():
         block._confidence = confidence
         block.update()
 
-    def identify_block(self, pose, threshold=0.05, color=""):
+    def identify_block(self, pose, threshold=0.08, color=""):
         """This function identifies the block that is closest to the given pose.
         If no block is close enough, then it returns None.
         Args:

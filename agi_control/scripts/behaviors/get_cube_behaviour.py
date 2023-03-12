@@ -50,6 +50,7 @@ class StackCubesActionPolicy(ActionPolicy):
         else:
             top_cube = self._blackboard.get("cubes_in_stack")[-1]
             target_pose = PoseStamped()
+            target_pose.header.frame_id = "base_footprint"
             target_pose.pose.position.x = top_cube.pose.pose.position.x
             target_pose.pose.position.y = top_cube.pose.pose.position.y
             target_pose.pose.position.z = top_cube.pose.pose.position.z + 0.045

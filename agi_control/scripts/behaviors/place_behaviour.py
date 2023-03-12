@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import pdb
 import rospy
 import py_trees
 import py_trees_ros.actions
@@ -17,6 +17,7 @@ class PlaceBehaviour(py_trees_ros.actions.ActionClient):
     This class is a wrapper around the ActionClient class from py_trees_ros.
     It generates the goal for the action client and sets the action spec.
     """
+    maps = None
 
     def __init__(self, name="Place Block"):
         """Constructor for PlaceBehaviour
@@ -65,6 +66,7 @@ class PlaceBehaviour(py_trees_ros.actions.ActionClient):
             place_goal.object_name = ''
         else:
             place_goal.object_name = next_cube.id
-            place_goal.target_pose = self._blackboard.get("target_pose")
+            place_goal.target_pose = self._blackboard.get("target_location")
+        pdb.set_trace()
         console.logdebug("Place goal")
         return place_goal

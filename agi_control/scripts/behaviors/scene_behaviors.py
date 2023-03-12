@@ -48,11 +48,6 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         self.scene_srv = rospy.ServiceProxy("/get_planning_scene",
                                             GetPlanningScene)
 
-        self.move_group_l0 = MoveGroupCommander("arm_left")
-        self.move_group_l1 = MoveGroupCommander("arm_left_torso")
-        self.move_group_r0 = MoveGroupCommander("arm_right")
-        self.move_group_r1 = MoveGroupCommander("arm_right_torso")
-
         self.scene_srv.wait_for_service()
 
         rospy.sleep(1)
@@ -71,10 +66,6 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         table_pose.pose.orientation.w = 1.0
         self._scene.add_box("table", table_pose, table["size"])
         rospy.sleep(0.5)
-        self.move_group_l0.set_support_surface_name("table")
-        self.move_group_l1.set_support_surface_name("table")
-        self.move_group_r0.set_support_surface_name("table")
-        self.move_group_r1.set_support_surface_name("table")
 
         try:
             self.table_co = self._scene.get_objects(["table"])["table"]
@@ -113,7 +104,6 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
 
         # Store the cubes in the blackboard
         self.blackboard.set("scene_cubes", cubes)
-        self.blackboard.set("table_block", self.table_co)
 
         # TEMPORARY NEED TO BE REMOVED
         next_cube = self.blackboard.get("next_cube")

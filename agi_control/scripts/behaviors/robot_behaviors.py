@@ -84,19 +84,22 @@ class ReadyPose(py_trees.behaviour.Behaviour):
     def __init__(self, name="Ready Pose"):
         super(ReadyPose, self).__init__(name=name)
 
+    def setup(self, timeout):
+        self.play_m_as = SimpleActionClient('/play_motion', PlayMotionAction)
+        return True
+
     def initialise(self):
         scene = PlanningSceneInterface()
         console.loginfo("Setting robot in ready pose")
-        self.play_m_as = SimpleActionClient('/play_motion', PlayMotionAction)
         pmg = PlayMotionGoal()
-        pmg.motion_name = 'pregrasp_left'
+        pmg.motion_name = 'pick_final_pose_l'
         pmg.skip_planning = False
-        self.play_m_as.send_goal_and_wait(pmg)
+        self.play_m_as.send_goal(pmg)
 
         pmg = PlayMotionGoal()
-        pmg.motion_name = 'pregrasp_right'
+        pmg.motion_name = 'pick_final_pose_r'
         pmg.skip_planning = False
-        self.play_m_as.send_goal_and_wait(pmg)
+        self.play_m_as.send_goal(pmg)
         rospy.loginfo("Done.")
 
         console.loginfo("Open gripper")

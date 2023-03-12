@@ -45,13 +45,10 @@ def get_gripper_status(left_right):
         gripper_pos_desired = msg.desired.positions
         gripper_pos_error = msg.error.positions
 
-        rospy.loginfo("gripper_pos_actual: {}".format(gripper_pos_actual))
-        rospy.loginfo("gripper_pos_desired: {}".format(gripper_pos_desired))
-        rospy.loginfo("gripper_pos_error: {}".format(gripper_pos_error))
     except rospy.ROSException:
         return "unknown"
 
-    if gripper_pos_actual[0] > 0.04:
+    if gripper_pos_actual[0] > 0.07:
         return "open"
     elif gripper_pos_error[0] < -0.01:
         return "with_cube"

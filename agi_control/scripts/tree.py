@@ -12,6 +12,21 @@ from behaviors import scene_behaviors
 from subtasks.get_cube import create_get_cube_subtask
 from subtasks.pick import create_pick_subtask
 from subtasks.place import create_place_subtask
+from utils.robot_utils import get_gripper_status
+from utils.robot_utils import get_arm
+
+
+def pre_tick_handler(behaviour_tree):
+    """
+    This function is called before each tick of the behaviour tree.
+    """
+    #set gripper status in blackboard
+    next_cube = py_trees.blackboard.Blackboard().get("next_cube")
+    if next_cube is None:
+        return
+    blackboard = py_trees.blackboard.Blackboard()
+    gripper_status = get_gripper_status(get_arm(blackboard.get("next_cube")))
+    blackboard.set("gripper_status", gripper_status)
 
 
 def agi_ctrl_root():
@@ -67,6 +82,7 @@ if __name__ == "__main__":
     console.logdebug("Tree initialized")
 
     tree = py_trees_ros.trees.BehaviourTree(root=root)
+    tree.add_pre_tick_handler(pre_tick_handler)
     console.logdebug("Tree created")
     tree.setup(30000)
     console.logdebug("Tree setup")
