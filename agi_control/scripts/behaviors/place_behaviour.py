@@ -67,6 +67,6 @@ class PlaceBehaviour(py_trees_ros.actions.ActionClient):
         else:
             place_goal.object_name = next_cube.id
             place_goal.target_pose = self._blackboard.get("target_location")
-        pdb.set_trace()
+            console.loginfo("Place goal: {}".format(place_goal))
         console.logdebug("Place goal")
         return place_goal
