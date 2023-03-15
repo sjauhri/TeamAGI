@@ -61,7 +61,7 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
 
         self.blackboard = Blackboard()
         # Add table to the planning scene
-        table = {"size": [0.60, 0.75, 0.50]}
+        table = {"size": [0.60, 0.75, 0.48]}
         table_pose = PoseStamped()
         table_pose.header.frame_id = "base_footprint"
         table_pose.pose.position.x = 0.5
