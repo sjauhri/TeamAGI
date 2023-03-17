@@ -178,7 +178,7 @@ class BlockManager():
         block._confidence = confidence
         block.update()
 
-    def identify_block(self, pose, threshold=0.08, color=""):
+    def identify_block(self, pose, threshold=0.04, color=""):
         """This function identifies the block that is closest to the given pose.
         If no block is close enough, then it returns None.
         Args:

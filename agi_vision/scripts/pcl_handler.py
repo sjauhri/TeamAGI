@@ -36,7 +36,8 @@ class PCLHandler:
         distance = 0.035
         thr_max = 1500
         thr_min = 800
-        self.cluster_handler = ClusterHandler(n_max, distance, thr_min, thr_max)
+        self.cluster_handler = ClusterHandler(n_max, distance, thr_min,
+                                              thr_max)
 
         self.node = rospy.init_node('pcl_handling', anonymous=True)
 
@@ -57,17 +58,16 @@ class PCLHandler:
                                               queue_size=10)
 
         self.pub_remaining = rospy.Publisher('PerceptionAlgoRemaining',
-                                              PointCloud2,
-                                              queue_size=10)
+                                             PointCloud2,
+                                             queue_size=10)
 
         self.pub_extracted = rospy.Publisher('PerceptionAlgoExtracted',
-                                              PointCloud2,
-                                              queue_size=10)
+                                             PointCloud2,
+                                             queue_size=10)
 
         self.pub_cube_poses = rospy.Publisher('cube_poses',
                                               PoseArray,
                                               queue_size=10)
-
 
         self.pub1_edge = rospy.Publisher('Edge_point1',
                                          PointCloud2,
@@ -94,7 +94,6 @@ class PCLHandler:
                                          PointCloud2,
                                          queue_size=10)
 
-
         # self.pub_plane = rospy.Publisher('Plane_rk', Plane, queue_size=10)
         self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(1))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -109,8 +108,6 @@ class PCLHandler:
         data = self.transform_to_base(data, stamp)
         # for p in pc2.read_points(data, field_names = ("x", "y", "z"), skip_nans=True):
         #     print " x : %f  y: %f  z: %f" %(p[0],p[1],p[2])
-
-       
 
         pcl_data = self.ros_to_pcl(data)
         fil = pcl_data.make_passthrough_filter()
@@ -146,18 +143,21 @@ class PCLHandler:
         # new structure
 
         fixed_n_clusters = True
-        n_clusters_fixed = 15  # TODO make config!
-        if fixed_n_clusters:   
-            cube_poses, color_names, confidences = self.cluster_handler.perception_fixed_clusters(cloud_plane, n_clusters_fixed)
+        n_clusters_fixed = 3  # TODO make config!
+        if fixed_n_clusters:
+            cube_poses, color_names, confidences = self.cluster_handler.perception_fixed_clusters(
+                cloud_plane, n_clusters_fixed)
             # perc_msg = self.generate_msg(cube_poses, color_names, confidences)
         else:
-            cube_poses, color_names, confidences, remaining_cloud, extracted_points = self.cluster_handler(cloud_plane)
+            cube_poses, color_names, confidences, remaining_cloud, extracted_points = self.cluster_handler(
+                cloud_plane)
             self.pub_remaining.publish(self.pcl_to_ros(remaining_cloud))
             self.pub_extracted.publish(self.pcl_to_ros(extracted_points))
-            
-       
+
         print("cluster handler done!")
-        print("##########################################################################")
+        print(
+            "##########################################################################"
+        )
         perc_msg = self.generate_msg(cube_poses, color_names, confidences)
         self.pub_cube_poses.publish(cube_poses)
         self.pub_perception.publish(perc_msg)
@@ -175,7 +175,7 @@ class PCLHandler:
         thr_max = 1100
         thr_min = 650
         n_iterate = 5
-        
+
         # print("start algo")
         # n_extracted, remaining_points, extracted_points = cluster_utils.find_n_clusters_2(cloud_plane, n_init_guess, n_max, thr_min, thr_max, n_iterate)
         # print("extracted blocks:")
@@ -320,7 +320,6 @@ class PCLHandler:
         # self.pub2_pcl2.publish(pcl_seg_transf)
         # self.pub_pcl2.publish(pcl_seg_msg)
 
-
     def generate_msg(self, cube_poses, color_names, confidences):
         perc_msg = PerceptionMSG()
         perc_msg.size = len(color_names)
@@ -331,8 +330,7 @@ class PCLHandler:
 
         perc_msg.color_names = color_names
         perc_msg.confidence = confidences
-        return perc_msg 
-
+        return perc_msg
 
     def transform_to_base(self, pc_ros, stamp):
 
@@ -461,7 +459,7 @@ class PCLHandler:
 
         return ros_msg
 
-    # TODO: delete it? 
+    # TODO: delete it?
     def extracting_indices(self, pcl_2):
 
         print("PointCloud before filtering: " +
