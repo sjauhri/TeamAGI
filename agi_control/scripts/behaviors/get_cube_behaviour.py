@@ -53,10 +53,11 @@ class StackCubesActionPolicy(ActionPolicy):
             target_pose.header.frame_id = "base_footprint"
             target_pose.pose.position.x = top_cube.pose.pose.position.x
             target_pose.pose.position.y = top_cube.pose.pose.position.y
-            target_pose.pose.position.z = top_cube.pose.pose.position.z + 0.045
+            target_pose.pose.position.z = top_cube.pose.pose.position.z + 0.06
             target_pose.pose.orientation.x = next_cube.pose.pose.orientation.x
             target_pose.pose.orientation.y = next_cube.pose.pose.orientation.y
             target_pose.pose.orientation.z = next_cube.pose.pose.orientation.z
+            target_pose.pose.orientation.w = next_cube.pose.pose.orientation.w
             return target_pose
 
     def get_next_cube(self):
@@ -116,6 +117,5 @@ class GetCubeBehaviour(py_trees.behaviour.Behaviour):
             return py_trees.common.Status.FAILURE
         else:
             self._blackboard.set("next_cube", next_cube)
-            pdb.set_trace()
             self._blackboard.set("target_location", target_location)
             return py_trees.common.Status.SUCCESS

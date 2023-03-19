@@ -86,51 +86,35 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         Returns:
             None
         """
-        # cube_detections = self.__get_published_poses()
+        # Get the perception data
         perception_data = self._get_published_perception()
+        console.loginfo("Read perception data")
 
-        if self.prev_perception_data is None:
-            self.prev_perception_data = perception_data
+        # Create cubes from perception data
+        self.block_manager.invalidate_blocks()
+        for i, pose in enumerate(perception_data.pose_array.poses):
+            pose_stamp = PoseStamped()
+            pose_stamp.header.frame_id = "base_footprint"
+            pose_stamp.pose = pose
 
-        if perception_data == self.prev_perception_data:
-            self.update_requested = True
-        else:
-            self.prev_perception_data = perception_data
+            self.block_manager.manage(pose_stamp,
+                                      confidence=perception_data.confidence[i],
+                                      color=perception_data.color_names[i])
 
-        console.loginfo("Received perception data")
+        self.block_manager.remove_invalid_blocks()
+
+        self.__clean_scene()
+
+        console.loginfo("Updated scene blocks")
+
+        cubes = self.block_manager.get_blocks()
+
+        # Store the cubes in the blackboard
+        self.blackboard.set("scene_cubes", cubes)
 
     def update(self):
-        if self.update_requested:
-            perception_data = self._get_published_perception()
-
-            for i, pose in enumerate(perception_data.pose_array.poses):
-                pose_stamp = PoseStamped()
-                pose_stamp.header.frame_id = "base_footprint"
-                pose_stamp.pose = pose
-
-                self.block_manager.manage(
-                    pose_stamp,
-                    confidence=perception_data.confidence[i],
-                    color=perception_data.color_names[i])
-
-            console.loginfo("Updated scene blocks")
-
-            self.__update_contact_objects()
-
-            cubes = self.block_manager.get_blocks()
-
-            # Store the cubes in the blackboard
-            self.blackboard.set("scene_cubes", cubes)
-
-            # Reset update_requested to False
-            self.update_requested = False
 
         return py_trees.common.Status.SUCCESS
-
-    def __get_published_poses(self):
-        """Retrieves the pose published in '/cube_poses' topic."""
-        cube_poses = rospy.wait_for_message('/cube_poses', PoseArray)
-        return cube_poses
 
     @staticmethod
     def _get_published_perception():
@@ -138,6 +122,18 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         perception_data = rospy.wait_for_message('/PerceptionMSG',
                                                  PerceptionMSG)
         return perception_data
+
+    def __clean_scene(self):
+        """Removes all cubes from the scene that have no entry in the block manager."""
+        scene_objects = self._scene.get_known_object_names()
+        scene_objects = [obj for obj in scene_objects if obj.startswith('box')]
+        block_ids = [block.id for block in self.block_manager.get_blocks()]
+        for obj in scene_objects:
+            if obj not in block_ids:
+                console.loginfo(
+                    "Removing object '{}' from scene as there is no cube manager correspondence"
+                    .format(obj))
+                self._scene.remove_world_object(obj)
 
     def __update_contact_objects(self):
 

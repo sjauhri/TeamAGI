@@ -27,11 +27,12 @@ class Block():
         self._pose = pose
         self._color = color
         self._scene.add_box(self._id, self._pose, (0.045, 0.045, 0.045))
-        rospy.sleep(0.5)
+        rospy.sleep(0.1)
         self._collision_object = self._scene.get_objects([self._id])[self._id]
         self._properties = {}
         self._confidence = confidence
         self._left_right = get_arm(self)
+        self._invalid = False
 
     @property
     def id(self):
@@ -68,6 +69,10 @@ class Block():
     @property
     def left_right(self):
         return self._left_right
+
+    @property
+    def invalid(self):
+        return self._invalid
 
     def add_property(self, name, value):
         self._properties[name] = value
@@ -136,11 +141,14 @@ class Block():
         try:
             self._scene.remove_world_object(self._id)
             self._scene.add_box(self._id, self._pose, (0.045, 0.045, 0.045))
-            rospy.sleep(0.5)
+            rospy.sleep(0.1)
             self._collision_object = self._scene.get_objects([self._id
                                                               ])[self._id]
         except:
             pass
+
+    def remove(self):
+        self._scene.remove_world_object(self._id)
 
 
 class BlockManager():
@@ -165,6 +173,7 @@ class BlockManager():
             id (str): The id of the block
             pose (PoseStamped): The pose of the block
         """
+        rospy.loginfo("Adding block " + id)
         self._blocks[id] = Block(id, pose, confidence, color)
 
     def update_block(self, id, pose, confidence):
@@ -173,9 +182,11 @@ class BlockManager():
             id (str): The id of the block
             pose (PoseStamped): The new pose of the block
         """
+        rospy.loginfo("Updating block " + id)
         block = self._blocks[id]
         block._pose = pose
         block._confidence = confidence
+        block._invalid = False
         block.update()
 
     def identify_block(self, pose, threshold=0.04, color=""):
@@ -238,11 +249,25 @@ class BlockManager():
         else:
             return [self._blocks[id] for id in ids]
 
+    def invalidate_blocks(self):
+        """This function invalidates all blocks.
+        """
+        for block in self._blocks.values():
+            block._invalid = True
+
     def manage(self, pose, confidence, color):
         """This function manages the blocks in the scene.
+        First, it invalidates all blocks. Then, it checks if the given pose
+        corresponds to an existing block. If so, it updates the block.
+        Otherwise, it adds a new block. A block is considered valid if it is
+        updated or added.
+        Finally, it removes all invalid blocks.
+
         Args:
             pose (PoseStamped): The pose of the block
         """
+        rospy.loginfo("Managing blocks")
+        # check if the block is already in the scene
         id = self.identify_block(pose, color=color)
         if id is None:
             id = "box" + str(len(self._blocks))
@@ -251,6 +276,26 @@ class BlockManager():
             self.update_block(id, pose, confidence)
 
         return id
+
+    def remove_invalid_blocks(self):
+        """This function removes all invalid blocks.
+        And blocks that are not part of the block manager.
+        """
+        # remove invalid blocks
+        for id, block in self._blocks.items():
+            if block._invalid:
+                rospy.loginfo("Removing block " + id + " (invalid)")
+                self.remove_block(id)
+
+    def remove_block(self, id):
+        """This function removes a block from the block manager.
+        Args:
+            id (str): The id of the block
+        """
+        rospy.loginfo("Removing block " + id)
+        block = self._blocks[id]
+        block.remove()
+        self._blocks.pop(id)
 
     def print_block_info(self):
         """ debugging """

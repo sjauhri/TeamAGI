@@ -43,7 +43,6 @@ class PlaceBehaviour(py_trees_ros.actions.ActionClient):
 
     def initialise(self):
         self.action_goal = self.get_place_goal()
-        pdb.set_trace()
         rospy.logdebug("Initialising PlaceBehaviour")
         super(PlaceBehaviour, self).initialise()
 

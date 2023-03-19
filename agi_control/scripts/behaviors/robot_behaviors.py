@@ -91,6 +91,11 @@ class ReadyPose(py_trees.behaviour.Behaviour):
     def initialise(self):
         scene = PlanningSceneInterface()
         console.loginfo("Setting robot in ready pose")
+
+        console.loginfo("Open gripper")
+        open_gripper("left")
+        open_gripper("right")
+
         pmg = PlayMotionGoal()
         pmg.motion_name = 'pick_final_pose_l'
         pmg.skip_planning = False
@@ -103,10 +108,6 @@ class ReadyPose(py_trees.behaviour.Behaviour):
         # self.play_m_as.send_goal(pmg)
         self.play_m_as.send_goal_and_wait(pmg)
         rospy.loginfo("Done.")
-
-        console.loginfo("Open gripper")
-        open_gripper("left")
-        open_gripper("right")
 
         # Remove attached objects from gripper
         scene.remove_attached_object()
