@@ -2,46 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import py_trees
-import rospy
-import pdb
-
-
-class SubtaskGuard(py_trees.behaviour.Behaviour):
-    """This class can be used to create a guard that is composed of multiple guards.
-
-    Example:
-        >>> guard1 = py_trees.blackboard.CheckBlackboardVariable(
-        ...     name="Guard1",
-        ...     variable_name="next_cube",
-        ...     expected_value='',
-        ...     comparison_operator=operator.ne)
-        >>> guard2 = py_trees.blackboard.CheckBlackboardVariable(
-        ...     name="Guard2",
-        ...     variable_name="next_cube",
-        ...     expected_value='',
-        ...     comparison_operator=operator.ne)
-        >>> guard = SubtaskGuard("Guard")
-        >>> guard.add_guard(guard1)
-        >>> guard.add_guard(guard2)
-    """
-
-    def __init__(self, name):
-        super(SubtaskGuard, self).__init__(name)
-        self._guards = []
-
-    def initialise(self):
-        self._blackboard = py_trees.blackboard.Blackboard()
-
-    def add_guard(self, guard):
-        self._guards.append(guard)
-
-    def update(self):
-        for guard in self._guards:
-            res = guard.update()
-            if res != py_trees.common.Status.SUCCESS:
-                rospy.loginfo("Guard {} failed.".format(guard.name))
-                return py_trees.common.Status.FAILURE
-        return py_trees.common.Status.SUCCESS
 
 
 class Subtask:
@@ -94,16 +54,21 @@ class Subtask:
             name='End Condition-{}'.format(self.name))
 
         #Initial
-        initial_sequence.add_child(self.initial_condition)
+        if self.initial_condition is not None:
+            initial_sequence.add_child(self.initial_condition)
         initial_sequence.add_child(action_sequence)
         action_sequence.add_child(execute_action_sequence)
         action_sequence.add_child(end_condition_sequence)
-        execute_action_sequence.add_child(self.action_guard)
-        execute_action_sequence.add_child(self.action)
-        end_condition_sequence.add_child(self.end_condition)
+        if self.action_guard is not None:
+            execute_action_sequence.add_child(self.action_guard)
+        if self.action is not None:
+            execute_action_sequence.add_child(self.action)
+        if self.end_condition is not None:
+            end_condition_sequence.add_child(self.end_condition)
 
         #Recovery
-        recovery_sequence.add_child(self.recovery_guard)
+        if self.recovery is not None:
+            recovery_sequence.add_child(self.recovery)
 
         #Task
         subtask.add_child(initial_sequence)

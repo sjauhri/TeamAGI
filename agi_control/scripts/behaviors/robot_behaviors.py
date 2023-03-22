@@ -1,24 +1,32 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# System imports
 import rospy
-import pdb
 
-# py_trees
+# PyTrees imports
 import py_trees
 import py_trees.console as console
 import py_trees_ros.trees
 
-# tiago_dual_pick_place
+# Tiago imports
 from tiago_dual_pick_place.msg import PlaceAutoObjectAction
 from tiago_dual_pick_place.msg import PlaceAutoObjectGoal
 from tiago_dual_pick_place.msg import PickUpObjectAction
 from tiago_dual_pick_place.msg import PickUpObjectGoal
 
-from play_motion_msgs.msg import PlayMotionAction, PlayMotionGoal
+# ROS imports
 from actionlib import SimpleActionClient
+from control_msgs.msg import FollowJointTrajectoryAction
+from control_msgs.msg import FollowJointTrajectoryGoal
+from play_motion_msgs.msg import PlayMotionAction
+from play_motion_msgs.msg import PlayMotionGoal
+from trajectory_msgs.msg import JointTrajectoryPoint
 
+# AGI imports
 from utils.robot_utils import open_gripper
+
+# MoveIt imports
 from moveit_commander import PlanningSceneInterface
 
 
@@ -71,7 +79,58 @@ class PlaceBlock(py_trees_ros.actions.ActionClient):
         if ret == py_trees.common.Status.SUCCESS:
             blackboard.cubes_in_stack.append(blackboard.next_cube)
             blackboard.set("next_cube", None)
+
+        console.loginfo("Place goal status: {}".format(ret))
         return ret
+
+
+class ScanTable(py_trees.behaviour.Behaviour):
+    """Behavior to move the robot up and down to scan the table
+    
+    This behavior moves the robot up and down to scan the table. Additionally,
+    the head is moved to scan the table.
+    """
+
+    def __init__(self, name="Scan Table"):
+        super(ScanTable, self).__init__(name=name)
+
+    def setup(self, timeout):
+        self.torso_as = SimpleActionClient(
+            '/torso_controller/follow_joint_trajectory',
+            FollowJointTrajectoryAction)
+        self.head_as = SimpleActionClient(
+            '/head_controller/follow_joint_trajectory',
+            FollowJointTrajectoryAction)
+        return True
+
+    def initialise(self):
+        console.loginfo("Scanning table")
+        self.torso_as.wait_for_server()
+        goal = FollowJointTrajectoryGoal()
+        goal.trajectory.joint_names = ['torso_lift_joint']
+        goal.trajectory.points = [
+            JointTrajectoryPoint(positions=[0.2],
+                                 velocities=[0.0],
+                                 time_from_start=rospy.Duration(2.0))
+        ]
+        self.torso_as.send_goal(goal)
+
+        # Move head
+        self.head_as.wait_for_server()
+        goal = FollowJointTrajectoryGoal()
+        goal.trajectory.joint_names = ['head_1_joint', 'head_2_joint']
+        goal.trajectory.points = [
+            JointTrajectoryPoint(positions=[0.0, 0.0],
+                                 velocities=[0.0, 0.0],
+                                 time_from_start=rospy.Duration(2.0)),
+            JointTrajectoryPoint(positions=[0.0, 0.0],
+                                 velocities=[0.0, 0.0],
+                                 time_from_start=rospy.Duration(4.0))
+        ]
+        self.head_as.send_goal(goal)
+
+    def update(self):
+        return py_trees.common.Status.SUCCESS
 
 
 class ReadyPose(py_trees.behaviour.Behaviour):
@@ -86,10 +145,11 @@ class ReadyPose(py_trees.behaviour.Behaviour):
 
     def setup(self, timeout):
         self.play_m_as = SimpleActionClient('/play_motion', PlayMotionAction)
-        return True
+        super(ReadyPose, self).setup(timeout)
 
     def initialise(self):
-        scene = PlanningSceneInterface()
+        self.blackboard = py_trees.blackboard.Blackboard()
+        self.scene = PlanningSceneInterface()
         console.loginfo("Setting robot in ready pose")
 
         console.loginfo("Open gripper")
@@ -107,12 +167,8 @@ class ReadyPose(py_trees.behaviour.Behaviour):
         pmg.skip_planning = False
         # self.play_m_as.send_goal(pmg)
         self.play_m_as.send_goal_and_wait(pmg)
-        rospy.loginfo("Done.")
 
-        # Remove attached objects from gripper
-        scene.remove_attached_object()
-
-        rospy.loginfo("Robot prepared.")
+        console.loginfo("Robot prepared.")
 
     def update(self):
         return py_trees.common.Status.SUCCESS

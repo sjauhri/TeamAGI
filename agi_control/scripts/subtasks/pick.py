@@ -1,17 +1,17 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# System imports
 import pdb
-import py_trees
 import operator
 
-from subtasks.subtask import Subtask
-from subtasks.subtask import SubtaskGuard
+# PyTrees imports
+import py_trees
 
+# AGI imports
 from behaviors.pick_behaviour import PickBehaviour
 from behaviors.pick_recovery import PickRecovery
-
-from utils.robot_utils import open_gripper
+from subtasks.subtask import Subtask
 
 task_name = "Pick"
 
@@ -79,21 +79,36 @@ def create_pick_subtask():
     Create the pick subtask.
     """
 
-    initial_condition = SubtaskGuard(name="Initial Condition - Pick")
-    initial_condition.add_guard(guard_has_cube)
+    # initial_condition = SubtaskGuard(name="Initial Condition - Pick")
+    # initial_condition.add_guard(guard_has_cube)
 
-    action_guard = SubtaskGuard(name="Action Guard - Pick")
-    action_guard.add_guard(guard_gripper_open)
+    # action_guard = SubtaskGuard(name="Action Guard - Pick")
+    # action_guard.add_guard(guard_gripper_open)
 
-    end_condition = SubtaskGuard(name="End Condition - Pick")
+    # end_condition = SubtaskGuard(name="End Condition - Pick")
 
-    recovery_guard = SubtaskGuard(name="Recovery Guard - Pick")
+    # recovery_guard = SubtaskGuard(name="Recovery Guard - Pick")
+
+    initial_condition = py_trees.decorators.StatusToBlackboard(
+        name="Initial Condition - Pick",
+        variable_name="status_ic_pick",
+        child=guard_has_cube)
+
+    action_guard = py_trees.decorators.StatusToBlackboard(
+        name="Action Guard - Pick",
+        variable_name="status_ag_pick",
+        child=guard_gripper_open)
+
+    end_condition = py_trees.decorators.StatusToBlackboard(
+        name="End Condition - Pick",
+        variable_name="status_ec_pick",
+        child=end_condition_cube_gripped)
 
     pick_subtask = Subtask(name=task_name)
     pick_subtask.set_action(action)
     pick_subtask.set_initial_condition(initial_condition)
-    pick_subtask.set_action_guard(guard_gripper_open)
+    pick_subtask.set_action_guard(action_guard)
     pick_subtask.set_end_condition(end_condition)
-    pick_subtask.set_recovery_guard(recovery_guard)
+    pick_subtask.set_recovery(recovery)
 
     return pick_subtask.create_subtask()

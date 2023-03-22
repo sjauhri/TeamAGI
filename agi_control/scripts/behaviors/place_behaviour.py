@@ -1,13 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import pdb
-import rospy
+
+# PyTrees imports
 import py_trees
 import py_trees_ros.actions
-import py_trees.console as console
+import py_trees.console as console\
 
-# tiago_dual_pick_place
+# ROS imports
+import rospy
+
+# Tiago imports
 from tiago_dual_pick_place.msg import PlaceAutoObjectAction, PlaceObjectGoal
+
+# AGI imports
 from utils.robot_utils import get_gripper_status, get_arm
 
 
@@ -45,6 +50,24 @@ class PlaceBehaviour(py_trees_ros.actions.ActionClient):
         self.action_goal = self.get_place_goal()
         rospy.logdebug("Initialising PlaceBehaviour")
         super(PlaceBehaviour, self).initialise()
+
+    def update(self):
+        action_result = super(PlaceBehaviour, self).update()
+        if action_result == py_trees.common.Status.RUNNING:
+            return py_trees.common.Status.RUNNING
+        elif action_result == py_trees.common.Status.SUCCESS:
+            # Update the pose of the cube to the target location
+            # And mark it as in the stack so it is not picked up again
+            placed_cube = self._blackboard.get("next_cube")
+            target_location = self._blackboard.get("target_location")
+            self._blackboard.get("cubes_in_stack").append(placed_cube)
+            placed_cube._properties["in_stack"] = True
+            placed_cube._properties["fixed"] = True
+            placed_cube._pose = target_location
+            placed_cube.update()
+            return py_trees.common.Status.SUCCESS
+        else:
+            return py_trees.common.Status.FAILURE
 
     def get_place_goal(self):
         """Generates the goal for the action client

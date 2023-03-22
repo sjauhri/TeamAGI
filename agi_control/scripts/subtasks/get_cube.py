@@ -6,7 +6,6 @@ import py_trees
 import operator
 
 from subtasks.subtask import Subtask
-from subtasks.subtask import SubtaskGuard
 from behaviors.get_cube_behaviour import GetCubeBehaviour
 
 task_name = "Get Cube"
@@ -73,22 +72,40 @@ def create_get_cube_subtask():
         py_trees.composites.Sequence: Sequence of the subtask.
     """
 
-    # Create a guard that is composed of multiple guards
-    initial_condition = SubtaskGuard("Initial Conditon - Get Cube")
-    initial_condition.add_guard(guard_has_cube)
-    initial_condition.add_guard(guard_has_no_scene_cube)
+    # # Create a guard that is composed of multiple guards
+    # initial_condition = SubtaskGuard("Initial Conditon - Get Cube")
+    # initial_condition.add_guard(guard_has_cube)
+    # initial_condition.add_guard(guard_has_no_scene_cube)
 
-    action_guard = SubtaskGuard("Action Guard - Get Cube")
+    # action_guard = SubtaskGuard("Action Guard - Get Cube")
 
-    end_condition = SubtaskGuard("End Condition - Get Cube")
+    # end_condition = SubtaskGuard("End Condition - Get Cube")
 
-    recovery_guard = SubtaskGuard("Recovery Guard - Get Cube")
+    # recovery_guard = SubtaskGuard("Recovery Guard - Get Cube")
+
+    initial_condition = py_trees.composites.Sequence(
+        "Initial Condition - Get Cube")
+    initial_condition_1 = py_trees.decorators.StatusToBlackboard(
+        name="IC - Has Next Cube | Get Cube",
+        child=guard_has_cube,
+        variable_name="status_ic_has_next_cube_get_cube")
+    initial_condition_2 = py_trees.decorators.StatusToBlackboard(
+        name="IC - Has No Scene Cube | Get Cube",
+        child=guard_has_no_scene_cube,
+        variable_name="status_ic_has_no_scene_cube_get_cube")
+
+    initial_condition.add_children([initial_condition_1, initial_condition_2])
+
+    end_condition = py_trees.decorators.StatusToBlackboard(
+        name="EC - Has Next Cube | Get Cube",
+        child=end_condition_has_cube,
+        variable_name="status_ec_has_next_cube_get_cube")
 
     get_cube_subtask = Subtask(name=task_name)
     get_cube_subtask.set_action(action)
-    get_cube_subtask.set_initial_condition(guard_has_cube)
-    get_cube_subtask.set_action_guard(action_guard)
+    get_cube_subtask.set_initial_condition(initial_condition)
+    # get_cube_subtask.set_action_guard(action_guard)
     get_cube_subtask.set_end_condition(end_condition)
-    get_cube_subtask.set_recovery_guard(recovery_guard)
+    # get_cube_subtask.set_recovery_guard(recovery_guard)
 
     return get_cube_subtask.create_subtask()

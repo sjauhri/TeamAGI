@@ -60,6 +60,7 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         self._scene.clear()
 
         self.blackboard = Blackboard()
+        self.blackboard.set("block_manager", self.block_manager)
         # Add table to the planning scene
         table = {"size": [0.60, 0.75, 0.48]}
         table_pose = PoseStamped()
@@ -86,6 +87,7 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         Returns:
             None
         """
+
         # Get the perception data
         perception_data = self._get_published_perception()
         console.loginfo("Read perception data")
@@ -153,16 +155,3 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
 
         # Update the param
         rospy.set_param("~links_to_allow_contact", links_to_allow_contact)
-
-
-class ResetNextBlock(py_trees.behaviour.Behaviour):
-
-    def __init__(self, name="ResetNextBlock"):
-        """Initialize the behavior."""
-        super(ResetNextBlock, self).__init__(name=name)
-        self.blackboard = Blackboard()
-
-    def update(self):
-        """Reset the next block in the blackboard."""
-        self.blackboard.set("next_block", None)
-        return py_trees.common.Status.SUCCESS

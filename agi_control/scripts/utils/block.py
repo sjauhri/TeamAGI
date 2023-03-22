@@ -1,12 +1,14 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# ROS imports
 from geometry_msgs.msg import PoseStamped
-from moveit_msgs.msg import CollisionObject
-from moveit_msgs.msg import Grasp
-from moveit_commander import PlanningSceneInterface
 import rospy
 
+# MoveIt imports=
+from moveit_commander import PlanningSceneInterface
+
+# AGI imports
 from utils.robot_utils import get_arm
 
 
@@ -77,66 +79,6 @@ class Block():
     def add_property(self, name, value):
         self._properties[name] = value
 
-    def grasps(self):
-        grasps = []
-
-        # Define the first grasp (top grasp)
-        grasp1 = Grasp()
-        grasp1.id = "grasp_1"
-        grasp1.grasp_pose.header.frame_id = "base_footprint"
-        grasp1.grasp_pose.pose.position.x = 0.0
-        grasp1.grasp_pose.pose.position.y = 0.0
-        grasp1.grasp_pose.pose.position.z = 0.5
-        grasp1.grasp_pose.pose.orientation = self.orientation()
-
-        grasps.append(grasp1)
-
-        # Define the second grasp (front grasp)
-        grasp2 = Grasp()
-        grasp2.id = "grasp_2"
-        grasp2.grasp_pose.header.frame_id = "base_footprint"
-        grasp2.grasp_pose.pose.position.x = 0.0
-        grasp2.grasp_pose.pose.position.y = 0.5
-        grasp2.grasp_pose.pose.position.z = 0.25
-        grasp1.grasp_pose.pose.orientation = self.orientation()
-
-        grasps.append(grasp2)
-
-        # Define the third grasp (right grasp)
-        grasp3 = Grasp()
-        grasp3.id = "grasp_3"
-        grasp3.grasp_pose.header.frame_id = "base_footprint"
-        grasp3.grasp_pose.pose.position.x = 0.5
-        grasp3.grasp_pose.pose.position.y = 0.0
-        grasp3.grasp_pose.pose.position.z = 0.25
-        grasp1.grasp_pose.pose.orientation = self.orientation()
-
-        grasps.append(grasp3)
-
-        # Define the fourth grasp (back grasp)
-        grasp4 = Grasp()
-        grasp4.id = "grasp_4"
-        grasp4.grasp_pose.header.frame_id = "base_footprint"
-        grasp4.grasp_pose.pose.position.x = 0.0
-        grasp4.grasp_pose.pose.position.y = -0.5
-        grasp4.grasp_pose.pose.position.z = 0.25
-        grasp1.grasp_pose.pose.orientation = self.orientation()
-
-        grasps.append(grasp4)
-
-        # Define the fifth grasp (left grasp)
-        grasp5 = Grasp()
-        grasp5.id = "grasp_5"
-        grasp5.grasp_pose.header.frame_id = "base_footprint"
-        grasp5.grasp_pose.pose.position.x = -0.5
-        grasp5.grasp_pose.pose.position.y = 0.0
-        grasp5.grasp_pose.pose.position.z = 0.25
-        grasp1.grasp_pose.pose.orientation = self.orientation()
-
-        grasps.append(grasp5)
-
-        return grasps
-
     def update(self):
         try:
             self._scene.remove_world_object(self._id)
@@ -184,6 +126,11 @@ class BlockManager():
         """
         rospy.loginfo("Updating block " + id)
         block = self._blocks[id]
+        # Fixed blocks are not updated
+        if block.properties.get("fixed") == True:
+            return
+
+        # Continue updating the block
         block._pose = pose
         block._confidence = confidence
         block._invalid = False
@@ -250,9 +197,12 @@ class BlockManager():
             return [self._blocks[id] for id in ids]
 
     def invalidate_blocks(self):
-        """This function invalidates all blocks.
+        """This function invalidates all blocks. Except the blocks that are fixed
         """
-        for block in self._blocks.values():
+        for block in [
+                block for block in self._blocks.values()
+                if not block.properties.get("fixed", False)
+        ]:
             block._invalid = True
 
     def manage(self, pose, confidence, color):

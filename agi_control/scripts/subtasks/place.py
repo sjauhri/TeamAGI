@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import py_trees
+# System imports
+import pdb
 import operator
 
-from subtasks.subtask import Subtask
-from subtasks.subtask import SubtaskGuard
+# PyTrees imports
+import py_trees
 
+# AGI imports
 from behaviors.place_behaviour import PlaceBehaviour
 from behaviors.place_recovery import PlaceRecovery
-
-from utils.robot_utils import get_gripper_status
+from subtasks.subtask import Subtask
 
 task_name = "Place"
 
@@ -39,7 +40,7 @@ guard_has_cube = py_trees.blackboard.CheckBlackboardVariable(
 
 # Check if the gripper is closed.
 # If the gripper is not closed, the guard will fail and the subtask will not be executed.
-guard_gripper_closed = py_trees.blackboard.CheckBlackboardVariable(
+guard_gripper_has_cube = py_trees.blackboard.CheckBlackboardVariable(
     name="AG - Gripper With Cube | Place",
     variable_name="gripper_status",
     expected_value="with_cube",
@@ -50,7 +51,7 @@ guard_gripper_closed = py_trees.blackboard.CheckBlackboardVariable(
 # Define the action behaviour of the subtask.
 # If the action fails, the subtask will go to the recovery behaviour.
 #============================================================================
-action = PlaceBehaviour("Place")
+action_behavior = PlaceBehaviour("Place")
 
 #============================================================================
 # End conditions
@@ -78,22 +79,46 @@ def create_place_subtask():
     Create the place subtask.
     """
 
-    initial_condition = SubtaskGuard(name="Initial Condition - Place")
-    initial_condition.add_guard(guard_has_cube)
+    # initial_condition = SubtaskGuard(name="Initial Condition - Place")
+    # initial_condition.add_guard(guard_has_cube)
 
-    action_guard = SubtaskGuard(name="Action Guard - Place")
-    action_guard.add_guard(guard_gripper_closed)
+    # action_guard = SubtaskGuard(name="Action Guard - Place")
+    # action_guard.add_guard(guard_gripper_closed)
 
-    end_condition = SubtaskGuard(name="End Condition - Place")
-    end_condition.add_guard(end_condition_cube_on_goal)
+    # end_condition = SubtaskGuard(name="End Condition - Place")
+    # end_condition.add_guard(end_condition_cube_on_goal)
 
-    recovery_guard = SubtaskGuard(name="Recovery Guard - Place")
+    # recovery_guard = SubtaskGuard(name="Recovery Guard - Place")
+
+    initial_condition = py_trees.decorators.StatusToBlackboard(
+        name="Initial Condition - Place",
+        child=guard_has_cube,
+        variable_name="status_ic_place")
+
+    action_guard = py_trees.decorators.StatusToBlackboard(
+        name="Action Guard - Place",
+        child=guard_gripper_has_cube,
+        variable_name="status_ag_place")
+
+    end_condition = py_trees.decorators.StatusToBlackboard(
+        name="End Condition - Place",
+        child=end_condition_cube_on_goal,
+        variable_name="status_ec_place")
+
+    action = py_trees.decorators.StatusToBlackboard(
+        name="Action - Place",
+        child=action_behavior,
+        variable_name="status_action_place")
+
+    initial_condition = guard_has_cube
+    action_guard = guard_gripper_has_cube
+    end_condition = end_condition_cube_on_goal
 
     place_subtask = Subtask(name=task_name)
     place_subtask.set_action(action)
     place_subtask.set_initial_condition(initial_condition)
-    place_subtask.set_action_guard(guard_gripper_closed)
+    place_subtask.set_action_guard(action_guard)
     place_subtask.set_end_condition(end_condition)
-    place_subtask.set_recovery_guard(recovery_guard)
+    place_subtask.set_recovery(recovery)
 
     return place_subtask.create_subtask()
