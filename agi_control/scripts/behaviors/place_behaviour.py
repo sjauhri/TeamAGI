@@ -14,7 +14,7 @@ from tiago_dual_pick_place.msg import PlaceAutoObjectAction, PlaceObjectGoal
 
 # AGI imports
 from utils.robot_utils import get_gripper_status, get_arm
-
+from perception_interface import StackedCubesPub
 
 class PlaceBehaviour(py_trees_ros.actions.ActionClient):
     """Action Client for placing a block
@@ -30,6 +30,7 @@ class PlaceBehaviour(py_trees_ros.actions.ActionClient):
         Args:
             name (str, optional): Name of the behavior. Defaults to "Place Block
         """
+        self.stacked_cubes_pub = StackedCubesPub()
         super(PlaceBehaviour, self).__init__(name=name,
                                              action_spec=PlaceAutoObjectAction,
                                              action_namespace="/place_object")
@@ -65,6 +66,18 @@ class PlaceBehaviour(py_trees_ros.actions.ActionClient):
             placed_cube._properties["fixed"] = True
             placed_cube._pose = target_location
             placed_cube.update()
+
+            # interface to perception 
+            # target_location: x, y relevant for ignoring the stacked cubes in the perception
+            # cubes in stack to adjust number of cubes for remaining cubes
+            n_stacked_cubes = len(self._blackboard.get("cubes_in_stack"))
+            
+            # TODO: uncomment to test!
+            # print(target_location)
+            # print(stacked_cubes)
+            # publishing it with an extra publicher class and msg
+            # self.stacked_cubes_pub(location, n_stacked_cubes)
+
             return py_trees.common.Status.SUCCESS
         else:
             return py_trees.common.Status.FAILURE
