@@ -1,0 +1,2 @@
+uint32 n_stacked
+geometry_msgs/PoseStamped location
