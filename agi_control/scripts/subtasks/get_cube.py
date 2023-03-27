@@ -6,8 +6,7 @@ import py_trees
 import operator
 
 from subtasks.subtask import Subtask
-from behaviors.get_cube_behaviour import GetCubeBehaviour
-
+from behaviors.get_cube_behaviour import GetCubeBehaviour,GetCubeBehaviour_CleanCenter
 task_name = "Get Cube"
 
 blackboard = py_trees.blackboard.Blackboard()
@@ -41,6 +40,7 @@ guard_has_cube = py_trees.decorators.FailureIsSuccess(
 #============================================================================
 
 action = GetCubeBehaviour("Get Cube")
+# action = GetCubeBehaviour_CleanCenter(("Get Cube"))
 
 #============================================================================
 # End conditions

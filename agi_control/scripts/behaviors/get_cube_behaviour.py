@@ -17,6 +17,8 @@ from utils.scene_utils import SceneUtils
 import numpy as np
 import random
 import math
+import sys
+from math import sqrt
 
 
 class ActionPolicy(object):
@@ -160,18 +162,19 @@ class GetCubeBehaviour(py_trees.behaviour.Behaviour):
             return py_trees.common.Status.SUCCESS
 
 
-class ShapePolicy(ActionPolicy):
-    """Base class for action policies. Place cubes into different shapes.
+class CleanCenterPolicy(ActionPolicy):
+    """Base class for action policies. Clean the cubes on the center of the table.
     
     Args:
         name (str): The name of the policy
     """
 
     def __init__(self):
-        super(ShapePolicy, self).__init__("ShapePolicy")
-        console.loginfo("Initializing ShapePolicy")
-        self._blackboard.set("cubes_in_shape", [])
+        super(CleanCenterPolicy, self).__init__("CleanCenterPolicy")
+        console.loginfo("Initializing CleanCenterPolicy")
+        self._blackboard.set("cubes_in_stack", [])
         self._blackboard.set("cubes_in_center", [])
+        self._blackboard.set("cubes_not_in_center", [])
         self.initialized = False
         # table
         self.margin = 0.06
@@ -179,112 +182,118 @@ class ShapePolicy(ActionPolicy):
                                               0.8 - self.margin)
         self.table_y_min, self.table_y_max = (-0.375 + self.margin,
                                               0.375 - self.margin)
-        self.center_x = (self.table_x_min + self.table_x_max) / 2
-        self.center_y = (self.table_y_min + self.table_y_max) / 2
+        self.table_center = ((self.table_x_min + self.table_x_max) / 2,
+                             (self.table_y_min + self.table_y_max) / 2)
         self.half_width = (self.table_x_max - self.table_x_min) / 2
-        self.half_height = (self.table_y_max - self.table_y_min) / 2
+        self.half_length = (self.table_y_max - self.table_y_min) / 2
+        self.center_x_min = self.table_center[0] - self.half_width / 4
+        self.center_x_max = self.table_center[0] + self.half_width / 4
+        self.center_y_min = self.table_center[1] - self.half_length / 4
+        self.center_y_max = self.table_center[1] + self.half_length / 4
+
+    def center_area(self, cubePose):
+        if self.center_x_min <= cubePose.pose.pose.position.x <=  self.center_x_max \
+            and self.center_y_min <= cubePose.pose.pose.position.y <= self.center_y_max:
+            return True
+        else:
+            return False
+
+    def distance(self, a, b):
+        return sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
+
+
+    def get_place_position(self, table_center, x_min1, x_max_1, x_min2, x_max_2, \
+                           y_min1, y_max_1, y_min2, y_max_2, cubes_not_in_center, min_distance=0.12, num_attempts=1000):
+        # Function to find the place position to the cube in the center
+        place_position = None
+        closest_distance = sys.float_info.max
+        list_position = []
+        for cube in cubes_not_in_center:
+            list_position.append((cube.pose.pose.position.x, cube.pose.pose.position.y))
+
+        # Try num_attempts times to find a suitable coordinate
+        for _ in range(num_attempts):
+            # Try num_attempts times to find a suitable coordinate
+            x = random.choice([
+                random.uniform(x_min1, x_max_1),
+                random.uniform(x_min2, x_max_2)
+            ])
+            y = random.choice([
+                random.uniform(y_min1, y_max_1),
+                random.uniform(y_min2, y_max_2)
+            ])
+            candidate_coordinate = (x, y)
+
+            # Check if the candidate coordinate is at least min_distance away from all existing coordinates in list_position
+            if all(
+                    self.distance(candidate_coordinate, position) >=
+                    min_distance for position in list_position):
+                candidate_distance = self.distance(candidate_coordinate,
+                                                   table_center)
+
+                # If the candidate distance is less than the current closest distance, update the closest distance and coordinate
+                if candidate_distance < closest_distance:
+                    closest_distance = candidate_distance
+                    place_position = candidate_coordinate
+
+        return place_position
 
     def update(self):
         self._scene_cubes = self._blackboard.get("scene_cubes")
+        self._center_cubes = self._blackboard.get("cubes_in_center")
         # Initialize scene cubes properties
         for scene_cube in self._scene_cubes:
             # Set properties if they have not been set
             if "pickable" not in scene_cube.properties:
                 scene_cube.properties["pickable"] = True
-            if "placed" not in scene_cube.properties:
-                scene_cube.properties["placed"] = False
+            if "in_stack" not in scene_cube.properties:
+                scene_cube.properties["in_stack"] = False
             # set xy rotation to zero, based on the prior knowledge that all squares lie flat on the table
             scene_cube.pose.pose.orientation.x = 0
             scene_cube.pose.pose.orientation.y = 0
             # Whether the coordinates are in quarter of the center of the desktop
-            if self.center_x - self.half_width/4 <= scene_cube.pose.pose.position.x <= self.center_x + self.half_width/4 \
-            and self.center_y - self.half_height/4 <= scene_cube.pose.pose.position.y <= self.center_y + self.half_height/4:
+            if self.center_area(scene_cube):
                 scene_cube.properties["in_center"] = True
                 self._blackboard.get("cubes_in_center").append(scene_cube)
             else:
                 scene_cube.properties["in_center"] = False
-
-            console.logdebug("test-------------------------------------test")
-            print(scene_cube.properties["in_center"])
+                self._blackboard.get("cubes_not_in_center").append(scene_cube)
 
         if not self.initialized:
-            self.initialize_shape()
+            self.initialize()
             self.initialized = True
 
-    def get_new_coordinate(self, x, y):
-        # Check if the input coordinate is within the specified area
-        if self.center_x - self.half_width/4 <= x <= self.center_x + self.half_width/4 \
-            and self.center_y - self.half_height/4 <= y <= self.center_y + self.half_height/4:
-
-            # If the input coordinate is within the specified area,
-            # generate a new coordinate outside the area
-            if x <= self.center_x:
-                new_x = self.center_x + self.half_width - self.margin * 2
-            else:
-                new_x = self.center_x - self.half_width + self.margin * 2
-
-            if y <= self.center_y:
-                new_y = self.center_y + self.half_height - self.margin * 2
-            else:
-                new_y = self.center_y - self.half_height + self.margin * 2
-            return (new_x, new_y)
-
-        # If the input coordinate is already outside the specified area
-        else:
-            return (x, y)
-
     def get_target_location(self, next_cube=None):
-        # Get the current top cube in the cube stack
-        # if next_cube is None or len(
-        #         self._blackboard.get("cubes_in_shape")) == 0:
-        #     return None
-        # else:
-        #     top_cube = self._blackboard.get("cubes_in_shape")[-1]
-        #     target_pose = PoseStamped()
-        #     target_pose.header.frame_id = "base_footprint"
-        #     target_pose.pose.position.x = top_cube.pose.pose.position.x
-        #     target_pose.pose.position.y = top_cube.pose.pose.position.y
-        #     target_pose.pose.position.z = top_cube.pose.pose.position.z + 0.06
-        #     target_pose.pose.orientation.x = next_cube.pose.pose.orientation.x
-        #     target_pose.pose.orientation.y = next_cube.pose.pose.orientation.y
-        #     target_pose.pose.orientation.z = next_cube.pose.pose.orientation.z
-        #     target_pose.pose.orientation.w = next_cube.pose.pose.orientation.w
-        #     return target_pose
-
         # Clean up the center area of the desktop
         if next_cube is None or len(
-                self._blackboard.get("cubes_in_shape")) == 0:
+                self._blackboard.get("cubes_in_stack")) == 0:
             return None
         else:
-            cube = self._blackboard.get("cubes_in_shape")[-1]
+            cube = self._blackboard.get("cubes_in_stack")[-1]
             target_pose = PoseStamped()
             target_pose.header.frame_id = "base_footprint"
             # target_pose.pose.position.x = cube.pose.pose.position.x
             # target_pose.pose.position.y = cube.pose.pose.position.y
-            target_pose.pose.position.x, target_pose.pose.position.y = self.get_new_coordinate(
-                cube.pose.pose.position.x, cube.pose.pose.position.y)
+            target_pose.pose.position.x, target_pose.pose.position.y = \
+            self.get_place_position(self.table_center,self.table_x_min,self.center_x_min,self.center_x_max,self.table_x_max,
+                                    self.table_y_min,self.center_y_min,self.center_x_max,self.table_y_max,self._blackboard.get("cubes_not_in_center"))
             target_pose.pose.position.z = cube.pose.pose.position.z + 0.01
             target_pose.pose.orientation.x = 0
             target_pose.pose.orientation.y = 0
             target_pose.pose.orientation.z = 0
             target_pose.pose.orientation.w = next_cube.pose.pose.orientation.w
+
             return target_pose
 
     def get_next_cube(self):
-        # Get scene cubes that are not placed
-        pdb.set_trace()
+        # Get scene cubes that are not in the stack
         scene_cubes_not_placed = [
-            scene_cubes for scene_cubes in self._scene_cubes
-            if scene_cubes.properties["placed"] == False
-        ]
-        # Get scene cubes that are in the center
-        scene_cubes_in_center = [
-            scene_cubes for scene_cubes in scene_cubes_not_placed
-            if scene_cubes.properties["in_center"] == True
+            scene_cubes for scene_cubes in self._center_cubes
+            if scene_cubes.properties["in_stack"] == False
         ]
         # Get scene cubes that are pickable
         scene_cubes_pickable = [
-            scene_cubes for scene_cubes in scene_cubes_in_center
+            scene_cubes for scene_cubes in scene_cubes_not_placed
             if scene_cubes.properties["pickable"] != False
         ]
         # Order scene cubes by confidence property
@@ -297,16 +306,16 @@ class ShapePolicy(ActionPolicy):
         else:
             return scene_cubes_pickable[0]
 
-    def initialize_shape(self):
+    def initialize(self):
         # Initialize the stack with the cube having the highest confidence
         init_cube = self.get_next_cube()
-        self._blackboard.get("cubes_in_shape").append(init_cube)
-        init_cube.properties["placed"] = True
+        self._blackboard.get("cubes_in_stack").append(init_cube)
+        init_cube.properties["in_stack"] = True
         init_cube.properties["fixed"] = True
-        # init_cube.properties["in_center"] = False
+        init_cube.properties["in_center"] = False
 
 
-class GetCubeBehaviourInShape(py_trees.behaviour.Behaviour):
+class GetCubeBehaviour_CleanCenter(py_trees.behaviour.Behaviour):
     """Behaviour for getting a cube.
     
     Args:
@@ -314,16 +323,16 @@ class GetCubeBehaviourInShape(py_trees.behaviour.Behaviour):
     """
 
     def __init__(self, name):
-        super(GetCubeBehaviourInShape, self).__init__(name)
+        super(GetCubeBehaviour_CleanCenter, self).__init__(name)
 
     def setup(self, timeout):
 
         self._blackboard = py_trees.blackboard.Blackboard()
-        self._action_policy = ShapePolicy()
+        self._action_policy = CleanCenterPolicy()
         self._blackboard.set("get_cube_policy", self._action_policy)
 
-        rospy.logdebug("Initialize GetCubeBehaviourInShape")
-        super(GetCubeBehaviourInShape, self).setup(timeout)
+        rospy.logdebug("Initialize GetCubeBehaviour_CleanCenter")
+        super(GetCubeBehaviour_CleanCenter, self).setup(timeout)
 
     def update(self):
         # Update the action policy
