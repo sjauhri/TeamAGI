@@ -84,55 +84,6 @@ class PlaceBlock(py_trees_ros.actions.ActionClient):
         return ret
 
 
-class ScanTable(py_trees.behaviour.Behaviour):
-    """Behavior to move the robot up and down to scan the table
-    
-    This behavior moves the robot up and down to scan the table. Additionally,
-    the head is moved to scan the table.
-    """
-
-    def __init__(self, name="Scan Table"):
-        super(ScanTable, self).__init__(name=name)
-
-    def setup(self, timeout):
-        self.torso_as = SimpleActionClient(
-            '/torso_controller/follow_joint_trajectory',
-            FollowJointTrajectoryAction)
-        self.head_as = SimpleActionClient(
-            '/head_controller/follow_joint_trajectory',
-            FollowJointTrajectoryAction)
-        return True
-
-    def initialise(self):
-        console.loginfo("Scanning table")
-        self.torso_as.wait_for_server()
-        goal = FollowJointTrajectoryGoal()
-        goal.trajectory.joint_names = ['torso_lift_joint']
-        goal.trajectory.points = [
-            JointTrajectoryPoint(positions=[0.2],
-                                 velocities=[0.0],
-                                 time_from_start=rospy.Duration(2.0))
-        ]
-        self.torso_as.send_goal(goal)
-
-        # Move head
-        self.head_as.wait_for_server()
-        goal = FollowJointTrajectoryGoal()
-        goal.trajectory.joint_names = ['head_1_joint', 'head_2_joint']
-        goal.trajectory.points = [
-            JointTrajectoryPoint(positions=[0.0, 0.0],
-                                 velocities=[0.0, 0.0],
-                                 time_from_start=rospy.Duration(2.0)),
-            JointTrajectoryPoint(positions=[0.0, 0.0],
-                                 velocities=[0.0, 0.0],
-                                 time_from_start=rospy.Duration(4.0))
-        ]
-        self.head_as.send_goal(goal)
-
-    def update(self):
-        return py_trees.common.Status.SUCCESS
-
-
 class ReadyPose(py_trees.behaviour.Behaviour):
     """Behavior to set the robot in a ready pose
     
@@ -145,6 +96,14 @@ class ReadyPose(py_trees.behaviour.Behaviour):
 
     def setup(self, timeout):
         self.play_m_as = SimpleActionClient('/play_motion', PlayMotionAction)
+
+        self.torso_as = SimpleActionClient(
+            '/torso_controller/follow_joint_trajectory',
+            FollowJointTrajectoryAction)
+
+        self.head_as = SimpleActionClient(
+            '/head_controller/follow_joint_trajectory',
+            FollowJointTrajectoryAction)
         super(ReadyPose, self).setup(timeout)
 
     def initialise(self):
@@ -167,6 +126,31 @@ class ReadyPose(py_trees.behaviour.Behaviour):
         pmg.skip_planning = False
         # self.play_m_as.send_goal(pmg)
         self.play_m_as.send_goal_and_wait(pmg)
+
+        console.loginfo("Lowering torso")
+        self.torso_as.wait_for_server()
+        goal = FollowJointTrajectoryGoal()
+        goal.trajectory.joint_names = ['torso_lift_joint']
+        goal.trajectory.points = [
+            JointTrajectoryPoint(positions=[0.35],
+                                 velocities=[0.0],
+                                 time_from_start=rospy.Duration(2.0))
+        ]
+        self.torso_as.send_goal(goal)
+
+        # Move head
+        self.head_as.wait_for_server()
+        goal = FollowJointTrajectoryGoal()
+        goal.trajectory.joint_names = ['head_1_joint', 'head_2_joint']
+        goal.trajectory.points = [
+            JointTrajectoryPoint(positions=[0.0, 0.0],
+                                 velocities=[0.0, 0.0],
+                                 time_from_start=rospy.Duration(2.0)),
+            JointTrajectoryPoint(positions=[0.0, 0.0],
+                                 velocities=[0.0, 0.0],
+                                 time_from_start=rospy.Duration(4.0))
+        ]
+        self.head_as.send_goal(goal)
 
         console.loginfo("Robot prepared.")
 

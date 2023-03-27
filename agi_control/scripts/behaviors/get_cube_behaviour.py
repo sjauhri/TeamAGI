@@ -12,6 +12,9 @@ import py_trees.console as console
 import rospy
 from geometry_msgs.msg import PoseStamped
 
+# AGI imports
+from utils.scene_utils import SceneUtils
+
 
 class ActionPolicy(object):
     """Base class for action policies.
@@ -23,6 +26,7 @@ class ActionPolicy(object):
     def __init__(self, name):
         self._name = name
         self._blackboard = py_trees.blackboard.Blackboard()
+        self._scene_utils = SceneUtils()
 
     def update(self):
         pass
@@ -58,14 +62,15 @@ class StackCubesActionPolicy(ActionPolicy):
                 scene_cube.properties["in_stack"] = False
 
         if not self.initialized:
-            self.initialize_stack()
+            #self.initialize_stack()
             self.initialized = True
 
     def get_target_location(self, next_cube=None):
         # Get the current top cube in the cube stack
         if next_cube is None or len(
                 self._blackboard.get("cubes_in_stack")) == 0:
-            return None
+            target_pose = self._scene_utils.get_free_region()
+            return target_pose
         else:
             top_cube = self._blackboard.get("cubes_in_stack")[-1]
             target_pose = PoseStamped()
@@ -81,7 +86,6 @@ class StackCubesActionPolicy(ActionPolicy):
 
     def get_next_cube(self):
         # Get scene cubes that are not in the stack
-        pdb.set_trace()
         scene_cubes_not_in_stack = [
             scene_cubes for scene_cubes in self._scene_cubes
             if scene_cubes.properties["in_stack"] == False

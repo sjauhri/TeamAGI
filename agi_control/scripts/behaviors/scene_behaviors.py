@@ -74,6 +74,7 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
 
         try:
             self.table_co = self._scene.get_objects(["table"])["table"]
+            self.blackboard.set("table_co", self.table_co)
             return True
         except KeyError:
             console.logerror("Table not found in the planning scene")

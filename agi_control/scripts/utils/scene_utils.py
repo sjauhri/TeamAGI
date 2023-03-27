@@ -21,6 +21,10 @@ from moveit_msgs.srv import GetPlanningScene
 # Ros messages
 from visualization_msgs.msg import Marker
 
+#PyTrees
+import py_trees
+
+import matplotlib.pyplot as plt
 # from reachability import Arm
 
 
@@ -31,6 +35,7 @@ class SceneUtils():
         self._scene_srv = rospy.ServiceProxy("/get_planning_scene",
                                              GetPlanningScene)
         self._scene_srv.wait_for_service()
+        self._blackboard = py_trees.blackboard.Blackboard()
 
     def get_scene_blocks(self):
         """This function returns the collision objects of the planning scene that have an id that starts with 'box'."""
@@ -44,7 +49,7 @@ class SceneUtils():
         table = [obj for obj in scene if obj.id.startswith("table")]
         return table[0]
 
-    def get_free_region(self, scene_blocks, table_block, num_regions=4):
+    def get_free_region(self):
         """This function finds n regions in an area that is not occupied by any collision object.
 
             The function takes in a list of collision objects that represent the blocks in the scene and a collision object that
@@ -64,7 +69,9 @@ class SceneUtils():
                 list: A list of points that represent the center of the regions with the radius of the regions
             
             """
-        # Get the table dimensions
+        # Get the table dimensions\
+        table_block = self._blackboard.get('table_co')
+        scene_cubes = self._blackboard.get('scene_cubes')
         table_dimensions = table_block.primitives[0].dimensions
         table_pose = table_block.primitive_poses[0]
         table_x_min, table_x_max = (table_pose.position.x -
@@ -77,25 +84,25 @@ class SceneUtils():
                                     table_dimensions[1] / 2)
 
         # Create a KDTree from the scene blocks
-        block_points = np.array([[
-            block.primitive_poses[0].position.x,
-            block.primitive_poses[0].position.y
-        ] for block in scene_blocks])
-        block_tree = KDTree(block_points)
+        cube_points = np.array(
+            [[cube.pose.pose.position.x, cube.pose.pose.position.y]
+             for cube in scene_cubes])
+        cube_tree = KDTree(cube_points)
 
         # Find the closest block to each point in the area
         x = np.linspace(table_x_min, table_x_max, 100)
         y = np.linspace(table_y_min, table_y_max, 100)
         xx, yy = np.meshgrid(x, y)
         points = np.array([xx.flatten(), yy.flatten()]).T
-        distances, indices = block_tree.query(points, return_distance=True)
+        distances, indices = cube_tree.query(points, return_distance=True)
         # Find the points that are not occupied by any block
-        free_points = points[(distances > 0.1).flatten()]
+        free_points = points[(distances > 0.05).flatten()]
+        pdb.set_trace()
         # Remove points that are on the edge of the table
-        free_points = free_points[(free_points[:, 0] > table_x_min + 0.1)
-                                  & (free_points[:, 0] < table_x_max - 0.1) &
-                                  (free_points[:, 1] > table_y_min + 0.1) &
-                                  (free_points[:, 1] < table_y_max - 0.1)]
+        free_points = free_points[(free_points[:, 0] > table_x_min + 0.05)
+                                  & (free_points[:, 0] < table_x_max - 0.05) &
+                                  (free_points[:, 1] > table_y_min + 0.05) &
+                                  (free_points[:, 1] < table_y_max - 0.05)]
 
         free_tree = KDTree(free_points)
 
