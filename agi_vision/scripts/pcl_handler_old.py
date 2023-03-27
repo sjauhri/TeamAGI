@@ -30,12 +30,7 @@ from cluster_handler import ClusterHandler
 
 
 class PCLHandler:
-    def __init__(self, n_clusters=5):
-        # TODO: add publishers for debug
-        self.n_clusters = n_clusters
-        self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(1))
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
-
+    def __init__(self):
         n_max = 30
         distance = 0.035
         thr_max = 1500
@@ -43,26 +38,93 @@ class PCLHandler:
         self.cluster_handler = ClusterHandler(n_max, distance, thr_min,
                                               thr_max)
 
-    def set_n_clusters(self, n_clusters):
-        self.n_clusters = n_clusters
+        self.node = rospy.init_node('pcl_handling', anonymous=True)
 
-    def get_n_clusters(self):
-        return self.n_clusters
+        self.sub = rospy.Subscriber('/xtion/depth_registered/points',
+                                    PointCloud2, self.callback)
 
-    def __call__(self, data):
-        return self.perceive_pclros(data)
+        # publisher for perceptionMSG
+        self.pub_perception = rospy.Publisher('PerceptionMSG',
+                                               PerceptionMSG,
+                                               queue_size=10)
+        # rospy.Service(name, service_class, handler)
+        self.service = rospy.Service('perceive', AddTwoInts, self.handle_request)
 
-    def perceive_pclros(self, data, n_clusters=None):
-        if n_clusters is not None:
-            self.set_n_clusters(n_clusters)
-        # adjusted the code from old callback
+
+        self.pub_pcl_filter = rospy.Publisher('Pointcloud2_filtered',
+                                               PointCloud2,
+                                               queue_size=10)
+
+        self.pub_pcl_planes = rospy.Publisher('Pointcloud2_cube_planes',
+                                               PointCloud2,
+                                               queue_size=10)
+
+        self.pub_pcl_top_planes = rospy.Publisher('Pointcloud2_top_cube_planes',
+                                                   PointCloud2,
+                                                   queue_size=10)
+
+
+        # publisher for debugging and visualization
+        self.pub_pcl_edges = rospy.Publisher('Edge_points',
+                                              PointCloud2,
+                                              queue_size=10)
+
+        self.pub_remaining = rospy.Publisher('PerceptionAlgoRemaining',
+                                              PointCloud2,
+                                              queue_size=10)
+
+        self.pub_extracted = rospy.Publisher('PerceptionAlgoExtracted',
+                                              PointCloud2,
+                                              queue_size=10)
+
+        self.pub_cube_poses = rospy.Publisher('cube_poses',
+                                              PoseArray,
+                                              queue_size=10)
+
+
+        self.pub1_edge = rospy.Publisher('Edge_point1',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub2_edge = rospy.Publisher('Edge_point2',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub3_edge = rospy.Publisher('Edge_point3',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub4_edge = rospy.Publisher('Edge_point4',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub5_edge = rospy.Publisher('Edge_point5',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub6_edge = rospy.Publisher('Edge_point6',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub7_edge = rospy.Publisher('Edge_point7',
+                                         PointCloud2,
+                                         queue_size=10)
+        self.pub8_edge = rospy.Publisher('Edge_point8',
+                                         PointCloud2,
+                                         queue_size=10)
+
+
+        # self.pub_plane = rospy.Publisher('Plane_rk', Plane, queue_size=10)
+        self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(1))
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        rospy.spin()
+
+
+    def callback(self, data):
         stamp = data.header.stamp
         # gets pointcloud2 data from node
         if not data.is_dense:
             rospy.logwarn('invalid points in Pointcloud!')
-
+        # rospy.loginfo(rospy.get_caller_id() + ('image  width %s and height %s' % (data.width, data.height)))
         data = self.transform_to_base(data, stamp)
+        # for p in pc2.read_points(data, field_names = ("x", "y", "z"), skip_nans=True):
+        #     print " x : %f  y: %f  z: %f" %(p[0],p[1],p[2])
 
+       
 
         pcl_data = self.ros_to_pcl(data)
         fil = pcl_data.make_passthrough_filter()
@@ -71,10 +133,16 @@ class PCLHandler:
         cloud_filtered = fil.filter()
 
         # publish filtered cloud
-        # self.pub_pcl_filter.publish(self.pcl_to_ros(cloud_filtered))
+        self.pub_pcl_filter.publish(self.pcl_to_ros(cloud_filtered))
+
+        #pcl_filter = self.extracting_indices(pcl_data)
+        #pcl_msg = self.pcl_to_ros(pcl_filter)
+        # self.pub_pcl2.publish(pcl_msg)
+        # print("starting segmentation")
+        original_size = cloud_filtered.size
+        pcl_seg = pcl.PointCloud_PointXYZRGB()
 
         # remove tabletop plane
-        original_size = cloud_filtered.size
         while (cloud_filtered.size > (original_size * 40) / 100):
             indices, plane_coeff = self.segment_pcl(cloud_filtered,
                                                     pcl.SACMODEL_PLANE)
@@ -82,8 +150,9 @@ class PCLHandler:
             cloud_filtered = cloud_filtered.extract(indices, negative=True)
 
         # get cube planes
-        # plane_indices = []
-        indices, plane_coeff = self.segment_pcl(cloud_filtered,
+        plane_indices = []
+        cloud_plane = cloud_filtered
+        indices, plane_coeff = self.segment_pcl(cloud_plane,
                                                 pcl.SACMODEL_PLANE)
         cloud_plane = cloud_filtered.extract(indices, negative=False)
 
@@ -92,30 +161,59 @@ class PCLHandler:
                                                 pcl.SACMODEL_NORMAL_PARALLEL_PLANE,
                                                 threshold=0.08)
         cloud_top = cloud_filtered.extract(indices, negative=False)
-        # self.pub_pcl_top_planes.publish(self.pcl_to_ros(cloud_top))
+        self.pub_pcl_top_planes.publish(self.pcl_to_ros(cloud_top))
 
 
-        cube_poses, color_names, confidences = self.cluster_handler.perception_fixed_clusters(cloud_plane, int(self.n_clusters))
-        return cube_poses, color_names, confidences
 
-        # fixed_n_clusters = True
-        # n_clusters_fixed = 5  # TODO make config!
-        # if fixed_n_clusters:   
-        #     cube_poses, color_names, confidences = self.cluster_handler.perception_fixed_clusters(cloud_plane, n_clusters_fixed)
-        #     # perc_msg = self.generate_msg(cube_poses, color_names, confidences)
-        # else:
-        #     cube_poses, color_names, confidences, remaining_cloud, extracted_points = self.cluster_handler(
-        #         cloud_plane)
-        #     self.pub_remaining.publish(self.pcl_to_ros(remaining_cloud))
-        #     self.pub_extracted.publish(self.pcl_to_ros(extracted_points))
+        ################################################################################
+        # new structure
+
+        fixed_n_clusters = True
+        n_clusters_fixed = 5  # TODO make config!
+        if fixed_n_clusters:   
+            cube_poses, color_names, confidences = self.cluster_handler.perception_fixed_clusters(cloud_plane, n_clusters_fixed)
+            # perc_msg = self.generate_msg(cube_poses, color_names, confidences)
+        else:
+            cube_poses, color_names, confidences, remaining_cloud, extracted_points = self.cluster_handler(
+                cloud_plane)
+            self.pub_remaining.publish(self.pcl_to_ros(remaining_cloud))
+            self.pub_extracted.publish(self.pcl_to_ros(extracted_points))
             
        
-        # print("cluster handler done!")
+        print("cluster handler done!")
+        print(
+            "##########################################################################"
+            )
+        perc_msg = self.generate_msg(cube_poses, color_names, confidences)
+        self.pub_cube_poses.publish(cube_poses)
+        self.pub_perception.publish(perc_msg)
+        print("published")
 
-        # perc_msg = self.generate_msg(cube_poses, color_names, confidences)
-        # self.pub_cube_poses.publish(cube_poses)
-        # self.pub_perception.publish(perc_msg)
-        # print("published")
+        # find n_cluster!
+        find_n_cluster = True
+        n_clusters = n_clusters_fixed
+
+        # find n_cluster!
+        # n_clusters_1 = cluster_utils.find_n_clusters_1(cloud_plane)
+        # print(n_clusters_1)
+        n_init_guess = 10
+        n_max = 30
+        thr_max = 1100
+        thr_min = 650
+        n_iterate = 5
+
+    def generate_msg(self, cube_poses, color_names, confidences):
+        perc_msg = PerceptionMSG()
+        perc_msg.size = len(color_names)
+
+        cube_poses.header.frame_id = "base_footprint"
+        cube_poses.header.stamp = rospy.Time.now()
+        perc_msg.pose_array = cube_poses
+
+        perc_msg.color_names = color_names
+        perc_msg.confidence = confidences
+        return perc_msg
+
 
     def transform_to_base(self, pc_ros, stamp):
 
