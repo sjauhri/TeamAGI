@@ -17,14 +17,15 @@ import h5py
 
 class Arm():
     # class-level variable to keep track of whether maps have been loaded or not
-    _maps_loaded = False  
+    _maps_loaded = False
 
     def __init__(self, pose):
         self.pos = pose
         if not Arm._maps_loaded:  # if maps haven't been loaded yet, load them
-            Arm.map_l, Arm.map_r = self.load_maps()
+            Arm.map6D_l, Arm.map6D_r, Arm.map3D_l, Arm.map3D_r = self.load_maps(
+            )
             # set class-level variable to True to indicate that maps have been loaded
-            Arm._maps_loaded = True  
+            Arm._maps_loaded = True
 
     def find_maps_folder(self):
         # Search in current directory and upper three levels
@@ -45,19 +46,29 @@ class Arm():
 
     def load_maps(self):
         maps_folder = self.find_maps_folder()
-        map_l, map_r = None, None
+        map6D_l, map6D_r = None, None
+        map3D_l, map3D_r = None, None
         for root, dirs, files in os.walk(maps_folder):
             if "score_map_left.h5" in files:
                 with h5py.File(os.path.join(root, "score_map_left.h5"),
                                "r") as f:
-                    map_l = np.array(f["map_l_s"])
+                    map6D_l = np.array(f["map_l_s"])
             if "score_map_right.h5" in files:
                 with h5py.File(os.path.join(root, "score_map_right.h5"),
                                "r") as f:
-                    map_r = np.array(f["map_r_s"])
-        return map_l, map_r
+                    map6D_r = np.array(f["map_r_s"])
+            if "score_map_left.h5" in files:
+                map3D_l = np.load(
+                    os.path.join(root,
+                                 "filtered_3D_reach_map_gripper_left.npy"))
+            if "score_map_right.h5" in files:
+                map3D_r = np.load(
+                    os.path.join(root,
+                                 "filtered_3D_reach_map_gripper_left.npy"))
 
-    def getScore(self, map, pos, left_right):
+        return map6D_l, map6D_r, map3D_l, map3D_r
+
+    def getScore6D(self, map, pos, left_right):
         # reach map,poses -> list of scores
         list_score = []
         for p in pos:
@@ -117,7 +128,11 @@ class Arm():
     def selectArm(self, score_l, score_r):
         if score_l == 0 and score_r == 0:
             # print("the inputed pose isn't in the reach map")
+            return None
+        elif score_l != 0 and score_r == 0:
             return "left"
+        elif score_l == 0 and score_r != 0:
+            return "right"
         elif score_l > score_r:
             # print("left arm")
             return "left"
@@ -125,29 +140,40 @@ class Arm():
             # print("right arm")
             return "right"
 
+    def getScore3D(self,map,pos):
+        list_score = []
+        for p in pos:
+            # reach map,position -> score
+            dist = np.empty((map.shape[0],1))
+            for i,l in enumerate(map):
+                dist[i] = np.sqrt(np.sum(np.square(l[:3]-p)))
+            # which cell of 5cm boxel grid
+            index = np.argmin(dist)
+            score = map[index,3]
+            list_score.append(score)
+        return list_score
+
     def getArm(self):
         # better reachability score -> select arm
         list_arm = []
-
-        # start = timeit.default_timer()
-
-        list_score_l = self.getScore(Arm.map_l, self.pos, "l")
-        list_score_r = self.getScore(Arm.map_r, self.pos, "r")
-
-        # end = timeit.default_timer()
-        # print('Running time of get scores: %s Seconds' % (end - start))
+        if self.pos.shape[1] == 6:
+            list_score_l = self.getScore6D(Arm.map6D_l, self.pos, "l")
+            list_score_r = self.getScore6D(Arm.map6D_r, self.pos, "r")
+        elif self.pos.shape[1] == 3:
+            list_score_l = self.getScore3D(Arm.map3D_l, self.pos)
+            list_score_r = self.getScore3D(Arm.map3D_r, self.pos)
+        else:
+            raise ValueError("Error: the inputed map shape should be (1,6),(n,6),(1,3) or (n,3).")
 
         for i in range(len(list_score_l)):
             list_arm.append(self.selectArm(
                 list_score_l[i],
                 list_score_r[i]))  # unreachable="", left="left", right="right"
-        # print("score_l:", list_score_l)
-        # print("score_r", list_score_r)
-        # print(arm)
-        if len(list_arm) == 1:
-            return list_arm[0]
-        else:
-            return list_arm
+
+            if len(list_arm) == 1:
+                return list_arm[0]
+            else:
+                return list_arm
 
 
 if __name__ == '__main__':
@@ -161,18 +187,37 @@ if __name__ == '__main__':
     pose1 = np.array(([[x, y, z, rx, ry, rz]]))
     pose2 = np.array(([[x, y, z, rx, ry, rz], [x, y, z, rx, ry, rz],
                        [x, y, z, rx, ry, rz]]))
-    # maps = load_maps()
+    position1 = np.array(([[x, y, z]]))
+    position2 = np.array(([[x, y, z], [x, y, z],
+                       [x, y, z]]))
+    
 
+    print("6D reach: ------------------------------------")
     print("shape of input poses:", pose1.shape)
     start = timeit.default_timer()
     arm = Arm(pose1)
     print(arm.getArm())
     end = timeit.default_timer()
     print('Running time of get scores: %s Seconds' % (end - start))
-    
-    print("shape of input poses:", pose1.shape)
+
+    print("shape of input poses:", pose2.shape)
     start = timeit.default_timer()
-    arm = Arm(pose1)
+    arm = Arm(pose2)
+    print(arm.getArm())
+    end = timeit.default_timer()
+    print('Running time of get scores: %s Seconds' % (end - start))
+
+    print("3D reach: ------------------------------------")
+    print("shape of input positions:", position1.shape)
+    start = timeit.default_timer()
+    arm = Arm(position1)
+    print(arm.getArm())
+    end = timeit.default_timer()
+    print('Running time of get scores: %s Seconds' % (end - start))
+
+    print("shape of input positions:", position2.shape)
+    start = timeit.default_timer()
+    arm = Arm(position2)
     print(arm.getArm())
     end = timeit.default_timer()
     print('Running time of get scores: %s Seconds' % (end - start))
