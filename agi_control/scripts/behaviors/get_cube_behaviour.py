@@ -241,6 +241,7 @@ class CleanCenterPolicy(ActionPolicy):
     def update(self):
         self._scene_cubes = self._blackboard.get("scene_cubes")
         self._center_cubes = self._blackboard.get("cubes_in_center")
+        self._not_center_cubes = self._blackboard.get("cubes_not_in_center")
         # Initialize scene cubes properties
         for scene_cube in self._scene_cubes:
             # Set properties if they have not been set
