@@ -7,7 +7,7 @@ from tf.transformations import quaternion_from_euler
 
 
 # kmeans clustering    
-def k_means_clustering(data,n_clusters,max_iterations):
+def k_means_clustering(data, n_clusters, max_iterations):
     kmeans = KMeans(n_clusters=n_clusters, random_state=0, max_iter=max_iterations).fit(data)
     clustered_indices=[]
     for i in range(n_clusters):
