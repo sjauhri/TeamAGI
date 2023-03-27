@@ -136,7 +136,7 @@ class ReadyPose(py_trees.behaviour.Behaviour):
                                  velocities=[0.0],
                                  time_from_start=rospy.Duration(2.0))
         ]
-        self.torso_as.send_goal(goal)
+        #self.torso_as.send_goal(goal)
 
         # Move head
         self.head_as.wait_for_server()
@@ -150,7 +150,7 @@ class ReadyPose(py_trees.behaviour.Behaviour):
                                  velocities=[0.0, 0.0],
                                  time_from_start=rospy.Duration(4.0))
         ]
-        self.head_as.send_goal(goal)
+        #self.head_as.send_goal(goal)
 
         console.loginfo("Robot prepared.")
 

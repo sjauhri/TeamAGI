@@ -25,7 +25,7 @@ from visualization_msgs.msg import Marker
 import py_trees
 
 import matplotlib.pyplot as plt
-# from reachability import Arm
+from behaviors.arm_selection import Arm
 
 
 class SceneUtils():
@@ -90,40 +90,48 @@ class SceneUtils():
         cube_tree = KDTree(cube_points)
 
         # Find the closest block to each point in the area
-        x = np.linspace(table_x_min, table_x_max, 100)
-        y = np.linspace(table_y_min, table_y_max, 100)
+        x = np.linspace(table_x_min, table_x_max, 50)
+        y = np.linspace(table_y_min, table_y_max, 50)
         xx, yy = np.meshgrid(x, y)
         points = np.array([xx.flatten(), yy.flatten()]).T
         distances, indices = cube_tree.query(points, return_distance=True)
         # Find the points that are not occupied by any block
         free_points = points[(distances > 0.05).flatten()]
-        pdb.set_trace()
         # Remove points that are on the edge of the table
-        free_points = free_points[(free_points[:, 0] > table_x_min + 0.05)
-                                  & (free_points[:, 0] < table_x_max - 0.05) &
-                                  (free_points[:, 1] > table_y_min + 0.05) &
-                                  (free_points[:, 1] < table_y_max - 0.05)]
+        free_points = free_points[(free_points[:, 0] > table_x_min + 0.1)
+                                  & (free_points[:, 0] < table_x_max - 0.1) &
+                                  (free_points[:, 1] > table_y_min + 0.1) &
+                                  (free_points[:, 1] < table_y_max - 0.1)]
 
-        free_tree = KDTree(free_points)
+        reachability = Arm(free_points)
 
-        num_ret = 0
-        max_iter = 100
-        r = 0.1
-        while max_iter > 0 and num_ret != 3:
-            indices = [
-                free_tree.query_radius([point], r=r) for point in free_points
-            ]
-            free_points = [
-                free_points[i[0][0]] for i in indices if len(i[0]) > 1
-            ]
-            num_ret = len(free_points)
-            print("Number of free regions: {}, Radius: {}".format(num_ret, r))
-            if num_ret < 3:
-                r = r + r * 0.5
-            if num_ret > 3:
-                r = r - r * 0.5
-            max_iter -= 1
-        return free_points[:3]
+        # Add z coordinate to free_points and set it to table height
+        free_points = np.hstack((free_points, np.ones(
+            (free_points.shape[0], 1)) * ((table_pose.position.z * 2) + 0.06)))
+
+        r_left = reachability.getScore3D(reachability.map3D_l, free_points)
+        r_right = reachability.getScore3D(reachability.map3D_r, free_points)
+        r_mean = (np.asarray(r_left) + np.asarray(r_right)) / 2
+        r_norm = (r_mean - np.min(r_mean)) / (np.max(r_mean) - np.min(r_mean))
+        max_reach = np.argmax(r_norm)
+
+        # Plot the free points with reachability. The color of the points is
+        # determined by the reachability. Green is good, blue is bad.
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111)
+        # # Rotate the plot so that the x axis is horizontal
+        # ax.scatter(free_points[:, 0], free_points[:, 1], c=r_norm, s=50)
+
+        # # plot point with highest reachability
+        # ax.scatter(free_points[max_reach, 0],
+        #            free_points[max_reach, 1],
+        #            c='r',
+        #            s=50)
+
+        # plt.show()
+        max_reach_point = free_points[max_reach, :]
+        max_reach_point = max_reach_point.tolist()
+        return max_reach_point
 
     @staticmethod
     def create_marker(position, radius):

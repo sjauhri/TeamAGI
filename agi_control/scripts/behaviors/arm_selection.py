@@ -64,7 +64,7 @@ class Arm():
             if "score_map_right.h5" in files:
                 map3D_r = np.load(
                     os.path.join(root,
-                                 "filtered_3D_reach_map_gripper_left.npy"))
+                                 "filtered_3D_reach_map_gripper_right.npy"))
 
         return map6D_l, map6D_r, map3D_l, map3D_r
 
@@ -140,17 +140,24 @@ class Arm():
             # print("right arm")
             return "right"
 
-    def getScore3D(self,map,pos):
-        list_score = []
-        for p in pos:
-            # reach map,position -> score
-            dist = np.empty((map.shape[0],1))
-            for i,l in enumerate(map):
-                dist[i] = np.sqrt(np.sum(np.square(l[:3]-p)))
-            # which cell of 5cm boxel grid
-            index = np.argmin(dist)
-            score = map[index,3]
-            list_score.append(score)
+    # def getScore3D(self,map,pos):
+    #     list_score = []
+    #     for p in pos:
+    #         # reach map,position -> score
+    #         dist = np.empty((map.shape[0],1))
+    #         for i,l in enumerate(map):
+    #             dist[i] = np.sqrt(np.sum(np.square(l[:3]-p)))
+    #         # which cell of 5cm boxel grid
+    #         index = np.argmin(dist)
+    #         score = map[index,3]
+    #         list_score.append(score)
+    #     return list_score
+
+    def getScore3D(self, map, pos):
+        dist = np.sqrt(
+            np.sum(np.square(map[:, :3, np.newaxis] - pos.T), axis=1))
+        index = np.argmin(dist, axis=0)
+        list_score = map[index, 3].tolist()
         return list_score
 
     def getArm(self):
@@ -163,7 +170,9 @@ class Arm():
             list_score_l = self.getScore3D(Arm.map3D_l, self.pos)
             list_score_r = self.getScore3D(Arm.map3D_r, self.pos)
         else:
-            raise ValueError("Error: the inputed map shape should be (1,6),(n,6),(1,3) or (n,3).")
+            raise ValueError(
+                "Error: the inputed map shape should be (1,6),(n,6),(1,3) or (n,3)."
+            )
 
         for i in range(len(list_score_l)):
             list_arm.append(self.selectArm(
@@ -188,9 +197,7 @@ if __name__ == '__main__':
     pose2 = np.array(([[x, y, z, rx, ry, rz], [x, y, z, rx, ry, rz],
                        [x, y, z, rx, ry, rz]]))
     position1 = np.array(([[x, y, z]]))
-    position2 = np.array(([[x, y, z], [x, y, z],
-                       [x, y, z]]))
-    
+    position2 = np.array(([[x, y, z], [x, y, z], [x, y, z]]))
 
     print("6D reach: ------------------------------------")
     print("shape of input poses:", pose1.shape)

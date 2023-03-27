@@ -68,23 +68,32 @@ class StackCubesActionPolicy(ActionPolicy):
             self.initialized = True
 
     def get_target_location(self, next_cube=None):
-        # Get the current top cube in the cube stack
-        if next_cube is None or len(
-                self._blackboard.get("cubes_in_stack")) == 0:
-            target_pose = self._scene_utils.get_free_region()
-            return target_pose
+        # Get the position and orientation of the next cube
+        next_orient = next_cube.pose.pose.orientation
+
+        # For the first cube, find a free region
+        if not self._blackboard.get("cubes_in_stack"):
+            target = self._scene_utils.get_free_region()
+            x = target[0]
+            y = target[1]
+            z = target[2]
+        # For the rest of the cubes, stack them on top of the previous cube
         else:
             top_cube = self._blackboard.get("cubes_in_stack")[-1]
-            target_pose = PoseStamped()
-            target_pose.header.frame_id = "base_footprint"
-            target_pose.pose.position.x = top_cube.pose.pose.position.x
-            target_pose.pose.position.y = top_cube.pose.pose.position.y
-            target_pose.pose.position.z = top_cube.pose.pose.position.z + 0.06
-            target_pose.pose.orientation.x = next_cube.pose.pose.orientation.x
-            target_pose.pose.orientation.y = next_cube.pose.pose.orientation.y
-            target_pose.pose.orientation.z = next_cube.pose.pose.orientation.z
-            target_pose.pose.orientation.w = next_cube.pose.pose.orientation.w
-            return target_pose
+            target_pos = top_cube.pose.pose.position
+            x = target_pos.x
+            y = target_pos.y
+            z = target_pos.z + 0.06
+
+        # Set the target pose
+        target_pose = PoseStamped()
+        target_pose.header.frame_id = "base_footprint"
+        target_pose.pose.position.x = x
+        target_pose.pose.position.y = y
+        target_pose.pose.position.z = z
+        target_pose.pose.orientation = next_orient
+
+        return target_pose
 
     def get_next_cube(self):
         # Get scene cubes that are not in the stack
