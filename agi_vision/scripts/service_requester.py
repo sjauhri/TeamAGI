@@ -28,7 +28,8 @@ if __name__ == '__main__':
     perc_srv = rospy.ServiceProxy('PerceptionService', PerceptionSRV)
     try:
         loc = PoseStamped()
-        perc_res = perc_srv(n_stacked=int(3))
+        # perc_res = perc_srv(n_stacked=int(3), location_stack=loc)
+        perc_res = perc_srv(int(99), None)
         print(perc_res)
     except rospy.ServiceException as exc:
         print("Service did not process request: " + str(exc))

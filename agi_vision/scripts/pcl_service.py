@@ -64,15 +64,19 @@ class PCLService:
         # let subscriber pubisher rolling 
         # store it in class attribute, let service return latest stored perceptin msg 
         print("working on request")
-        n = req.n_stacked
-        print(n_stacked, n)
+        print(req)
+        n_stacked = req.n_stacked
+        loc_stack = req.location_stack
+
+
         # loc = req.location_stack
         start_time = time.time() 
-
+        time.sleep(1)
+        # data = rospy.wait_for_message('/xtion/depth_registered/points', PointCloud2, timeout=10)
         data = rospy.wait_for_message('/xtion/depth_registered/points', PointCloud2, timeout=10)
         stamp = data.header.stamp
 
-        cube_poses, color_names, confidences = self.pcl_handler(data)
+        cube_poses, color_names, confidences = self.pcl_handler(data, int(n_stacked), loc_stack)
         print("perceived")
         perc_msg = self.generate_msg(cube_poses, color_names, confidences, stamp)
 
