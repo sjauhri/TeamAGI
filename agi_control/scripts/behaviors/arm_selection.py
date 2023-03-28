@@ -29,20 +29,21 @@ class Arm():
 
     def find_maps_folder(self):
         # Search in current directory and upper three levels
-        for i in range(4):
-            parent_dirs = os.path.join(*([os.pardir] * i) + [''])
-            maps_path = os.path.join(os.getcwd(), parent_dirs, "maps")
-            if os.path.exists(maps_path):
-                return maps_path
+        # for i in range(4):
+        #     parent_dirs = os.path.join(*([os.pardir] * i) + [''])
+        #     maps_path = os.path.join(os.getcwd(), parent_dirs, "maps")
+        #     if os.path.exists(maps_path):
+        #         return maps_path
 
         # Search in lower three levels
-        for dirpath, dirnames, filenames in os.walk("."):
-            if "maps" in dirnames:
-                return os.path.join(dirpath, "maps")
+        # for dirpath, dirnames, filenames in os.walk("."):
+        #     if "maps" in dirnames:
+        #         return os.path.join(dirpath, "maps")
 
         # If maps folder is not found, return path "/src/TeamAGI/agi_control/scripts/maps"
-        return os.path.join(os.getcwd(), "src", "TeamAGI", "agi_control",
-                            "scripts", "maps")
+        # /home/hypatia/tiago_agi_ws/src/TeamAGI/agi_control/scripts/behaviors/arm_selection.py
+        return os.path.join(os.getcwd(), "tiago_agi_ws", "src", "TeamAGI", "agi_control",
+                            "scripts", "behaviors", "maps")
 
     def load_maps(self):
         maps_folder = self.find_maps_folder()
