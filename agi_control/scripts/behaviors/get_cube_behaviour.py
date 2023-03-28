@@ -172,7 +172,7 @@ class CleanCenterPolicy(ActionPolicy):
     def __init__(self):
         super(CleanCenterPolicy, self).__init__("CleanCenterPolicy")
         console.loginfo("Initializing CleanCenterPolicy")
-        self._blackboard.set("cubes_in_stack", [])
+        # self._blackboard.set("cubes_in_stack", [])
         self._blackboard.set("cubes_in_center", [])
         self._blackboard.set("cubes_not_in_center", [])
         self.initialized = False
@@ -267,10 +267,10 @@ class CleanCenterPolicy(ActionPolicy):
     def get_target_location(self, next_cube=None):
         # Clean up the center area of the desktop
         if next_cube is None or len(
-                self._blackboard.get("cubes_in_stack")) == 0:
+                self._blackboard.get("cubes_in_center")) == 0:
             return None
         else:
-            cube = self._blackboard.get("cubes_in_stack")[-1]
+            cube_center = self._blackboard.get("cubes_in_center")[-1]
             target_pose = PoseStamped()
             target_pose.header.frame_id = "base_footprint"
             # target_pose.pose.position.x = cube.pose.pose.position.x
@@ -278,7 +278,7 @@ class CleanCenterPolicy(ActionPolicy):
             target_pose.pose.position.x, target_pose.pose.position.y = \
             self.get_place_position(self.table_center,self.table_x_min,self.center_x_min,self.center_x_max,self.table_x_max,
                                     self.table_y_min,self.center_y_min,self.center_x_max,self.table_y_max,self._blackboard.get("cubes_not_in_center"))
-            target_pose.pose.position.z = cube.pose.pose.position.z + 0.01
+            target_pose.pose.position.z = cube_center.pose.pose.position.z + 0.01
             target_pose.pose.orientation.x = 0
             target_pose.pose.orientation.y = 0
             target_pose.pose.orientation.z = 0
@@ -310,10 +310,11 @@ class CleanCenterPolicy(ActionPolicy):
     def initialize(self):
         # Initialize the stack with the cube having the highest confidence
         init_cube = self.get_next_cube()
-        self._blackboard.get("cubes_in_stack").append(init_cube)
-        init_cube.properties["in_stack"] = True
-        init_cube.properties["fixed"] = True
-        init_cube.properties["in_center"] = False
+        if init_cube !=None:
+            self._blackboard.get("cubes_in_center").append(init_cube)
+            # init_cube.properties["in_stack"] = True
+            init_cube.properties["fixed"] = True
+            init_cube.properties["in_center"] = False
 
 
 class GetCubeBehaviour_CleanCenter(py_trees.behaviour.Behaviour):

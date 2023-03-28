@@ -62,6 +62,8 @@ class PlaceBehaviour(py_trees_ros.actions.ActionClient):
             placed_cube = self._blackboard.get("next_cube")
             target_location = self._blackboard.get("target_location")
             self._blackboard.get("cubes_in_stack").append(placed_cube)
+            if self._blackboard.get("cubes_not_in_center") != None:
+                self._blackboard.get("cubes_not_in_center").append(placed_cube)
             placed_cube._properties["in_stack"] = True
             placed_cube._properties["fixed"] = True
             placed_cube._pose = target_location

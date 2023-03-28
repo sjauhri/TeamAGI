@@ -79,6 +79,9 @@ class PlaceBlock(py_trees_ros.actions.ActionClient):
         if ret == py_trees.common.Status.SUCCESS:
             blackboard.cubes_in_stack.append(blackboard.next_cube)
             blackboard.set("next_cube", None)
+            if self._blackboard.get("cubes_not_in_center") != None:
+                blackboard.cubes_not_in_center.append(blackboard.next_cube)
+            blackboard.set("next_cube", None)
 
         console.loginfo("Place goal status: {}".format(ret))
         return ret
