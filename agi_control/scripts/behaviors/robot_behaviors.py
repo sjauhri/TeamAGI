@@ -134,12 +134,13 @@ class ReadyPose(py_trees.behaviour.Behaviour):
         self.torso_as.wait_for_server()
         goal = FollowJointTrajectoryGoal()
         goal.trajectory.joint_names = ['torso_lift_joint']
+        # TODO check height of torso in ready pose!
         goal.trajectory.points = [
-            JointTrajectoryPoint(positions=[0.35],
+            JointTrajectoryPoint(positions=[0.0],
                                  velocities=[0.0],
                                  time_from_start=rospy.Duration(2.0))
         ]
-        #self.torso_as.send_goal(goal)
+        self.torso_as.send_goal_and_wait(goal)
 
         # Move head
         self.head_as.wait_for_server()
