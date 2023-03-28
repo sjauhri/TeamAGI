@@ -32,9 +32,18 @@ from cluster_handler import ClusterHandler
 class PCLHandler:
     def __init__(self, n_clusters=5):
         # TODO: add publishers for debug
-        self.n_clusters = n_clusters
+        self.n_clusters_start = int(n_clusters)
         self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(1))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+
+        self.pub_pcl_planes = rospy.Publisher('Pointcloud2_cube_planes_substracted',
+                                        PointCloud2,
+                                        queue_size=10)
+        
+        self.pub_pcl_raw = rospy.Publisher('Pointcloud2_raw_sub',
+                                PointCloud2,
+                                queue_size=10)
+
 
         n_max = 30
         distance = 0.035
@@ -49,12 +58,14 @@ class PCLHandler:
     def get_n_clusters(self):
         return self.n_clusters
 
-    def __call__(self, data):
-        return self.perceive_pclros(data)
+    def __call__(self, data, n_stacked=0, loc_stacked=PoseStamped()):
+        return self.perceive_pclros(data, n_stacked, loc_stacked)
 
-    def perceive_pclros(self, data, n_clusters=None):
-        if n_clusters is not None:
-            self.set_n_clusters(n_clusters)
+    def perceive_pclros(self, data, n_stacked, loc_stacked):
+
+        self.pub_pcl_raw.publish(data)
+
+        n_cluster_current = int(self.n_clusters_start - int(n_stacked))
         # adjusted the code from old callback
         stamp = data.header.stamp
         # gets pointcloud2 data from node
@@ -67,7 +78,7 @@ class PCLHandler:
         pcl_data = self.ros_to_pcl(data)
         fil = pcl_data.make_passthrough_filter()
         fil.set_filter_field_name("z")
-        fil.set_filter_limits(0.47, 1.5)
+        fil.set_filter_limits(0.46, 1.5)
         cloud_filtered = fil.filter()
 
         # publish filtered cloud
@@ -94,8 +105,15 @@ class PCLHandler:
         cloud_top = cloud_filtered.extract(indices, negative=False)
         # self.pub_pcl_top_planes.publish(self.pcl_to_ros(cloud_top))
 
+        print("perception with clusters:", n_cluster_current)
+        
+        # subtracting the stacking position
+        cloud_plane = self.subtract_place(cloud_plane,loc_stacked)
+        # print(type(cloud_plane))
 
-        cube_poses, color_names, confidences = self.cluster_handler.perception_fixed_clusters(cloud_plane, int(self.n_clusters))
+        self.pub_pcl_planes.publish(self.pcl_to_ros(cloud_plane))
+
+        cube_poses, color_names, confidences = self.cluster_handler.perception_fixed_clusters(cloud_plane, int(n_cluster_current))
         return cube_poses, color_names, confidences
 
         # fixed_n_clusters = True
@@ -174,7 +192,7 @@ class PCLHandler:
         """
         points_list = []
 
-        for data in pc2.read_points(ros_cloud, skip_nans=True):
+        for data in pc2.read_points(ros_cloud, skip_nans=False):
             points_list.append([data[0], data[1], data[2], data[3]])  #]
 
         pcl_data = pcl.PointCloud_PointXYZRGB()
@@ -269,3 +287,17 @@ class PCLHandler:
               str(pcl_2_filtered.width * pcl_2_filtered.height) +
               ' data points.')
         return pcl_2_filtered
+    
+    def subtract_place(self, cloud, place_pose):
+        cloud_return=[]
+        cloud_array=np.array(cloud)
+        # TODO: get pose
+        x=place_pose.pose.position.x
+        y=place_pose.pose.position.y
+        thres = 0.03
+        for point in cloud_array:
+            if (point[0]>(x+thres) or point[0]<(x-thres)) and (point[1]>(y+thres) or point[1]<(y-thres)):
+                cloud_return.append(point)
+        result_cloud=pcl.PointCloud_PointXYZRGB()
+        result_cloud.from_list(cloud_return)
+        return  result_cloud    
