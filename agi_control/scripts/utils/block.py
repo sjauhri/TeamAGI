@@ -34,6 +34,7 @@ class Block():
         self._properties = {}
         self._confidence = confidence
         self._left_right = get_arm(self)
+        print(self._left_right)
         self._invalid = False
 
     @property
