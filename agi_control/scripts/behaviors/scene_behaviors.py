@@ -18,6 +18,7 @@ from py_trees.blackboard import Blackboard
 
 # perseption
 from agi_vision.msg import PerceptionMSG
+from agi_vision.srv import PerceptionSRV
 
 # Utils
 from utils.block import BlockManager
@@ -62,7 +63,7 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         self.blackboard = Blackboard()
         self.blackboard.set("block_manager", self.block_manager)
         # Add table to the planning scene
-        table = {"size": [0.60, 0.75, 0.48]}
+        table = {"size": [0.60, 0.75, 0.455]}
         table_pose = PoseStamped()
         table_pose.header.frame_id = "base_footprint"
         table_pose.pose.position.x = 0.5
@@ -72,6 +73,11 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         self._scene.add_box("table", table_pose, table["size"])
         rospy.sleep(0.5)
 
+
+        # Perception service 
+        # rospy.wait_for_service('PerceptionService')
+        # self.perception_server = rospy.ServiceProxy('PerceptionService', PerceptionSRV)
+        
         try:
             self.table_co = self._scene.get_objects(["table"])["table"]
             self.blackboard.set("table_co", self.table_co)
@@ -88,9 +94,16 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         Returns:
             None
         """
-
+        console.loginfo("in init scene behavior")
         # Get the perception data
-        perception_data = self._get_published_perception()
+        # from topic
+        # perception_data = self._get_published_perception()
+        
+        # from service 
+        perception_data = self._get_perception_service()
+
+        print(perception_data)
+        
         console.loginfo("Read perception data")
 
         # Create cubes from perception data
@@ -125,6 +138,41 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         perception_data = rospy.wait_for_message('/PerceptionMSG',
                                                  PerceptionMSG)
         return perception_data
+
+    def _get_perception_service(self):
+        # get perception data from service 
+
+        print(self.blackboard)  # .get("cube_0")
+        
+        # get stacked cubes from blackboard
+        cubes_in_stack = self.blackboard.get("cubes_in_stack")
+
+        if cubes_in_stack:
+            n_stacked = len(cubes_in_stack)
+            # TODO: stacking locaton up to date? 
+            # check place target in tree!
+            # Update pose of first stacked cube!
+            loc = cubes_in_stack[0]._pose
+            print(loc)
+        else:
+            n_stacked = 0
+            # default location
+            loc = PoseStamped()
+
+        # get location of stacked cubes from blackboard
+        
+        # Perception service 
+        console.loginfo("waiting for Perception Service")
+        rospy.wait_for_service('PerceptionService')
+        self.perception_server = rospy.ServiceProxy('PerceptionService', PerceptionSRV)
+        console.loginfo("sending request!")
+
+
+        perc_res = self.perception_server(int(n_stacked), loc)
+        msg = perc_res.perception_msg
+        print(msg)
+        return msg
+
 
     def __clean_scene(self):
         """Removes all cubes from the scene that have no entry in the block manager."""
