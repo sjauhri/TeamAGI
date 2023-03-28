@@ -98,10 +98,11 @@ class SceneUtils():
         # Find the points that are not occupied by any block
         free_points = points[(distances > 0.05).flatten()]
         # Remove points that are on the edge of the table
-        free_points = free_points[(free_points[:, 0] > table_x_min + 0.1)
-                                  & (free_points[:, 0] < table_x_max - 0.1) &
-                                  (free_points[:, 1] > table_y_min + 0.1) &
-                                  (free_points[:, 1] < table_y_max - 0.1)]
+        thres = 0.15
+        free_points = free_points[(free_points[:, 0] > table_x_min + thres)
+                                  & (free_points[:, 0] < table_x_max - thres) &
+                                  (free_points[:, 1] > table_y_min + thres) &
+                                  (free_points[:, 1] < table_y_max - thres)]
 
         reachability = Arm(free_points)
 

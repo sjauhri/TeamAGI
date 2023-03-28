@@ -28,11 +28,15 @@ def get_gripper_status(left_right):
     """
     gripper_pos = []
     gripper_vel = []
+    print(left_right)
 
     if left_right == "left":
         topic_name = "/parallel_gripper_left_controller/state"
     elif left_right == "right":
         topic_name = "/parallel_gripper_right_controller/state"
+    else:
+        print("Cant Check GRIPPER STATUS (in robot_utils.py)!")
+
 
     try:
         rospy.wait_for_message(topic_name,
@@ -94,5 +98,9 @@ def open_gripper(left_right):
 def get_arm(cube):
     pose = np.array(([[cube.pose.pose.position.x,cube.pose.pose.position.y,cube.pose.pose.position.z,\
                     cube.pose.pose.orientation.x,cube.pose.pose.orientation.y,cube.pose.pose.orientation.z]]))
+    print(pose)
     arm = Arm(pose)
-    return arm.getArm()
+    arm = arm.getArm()
+    if arm is None:
+        arm = 'left'
+    return arm

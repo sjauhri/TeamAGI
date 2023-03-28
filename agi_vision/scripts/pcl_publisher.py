@@ -66,9 +66,7 @@ class PCLPublisher:
                                                PointCloud2,
                                                queue_size=10)
 
-        self.pub_pcl_planes = rospy.Publisher('Pointcloud2_cube_planes',
-                                               PointCloud2,
-                                               queue_size=10)
+
 
         self.pub_pcl_top_planes = rospy.Publisher('Pointcloud2_top_cube_planes',
                                                    PointCloud2,
@@ -91,30 +89,30 @@ class PCLPublisher:
                                               queue_size=10)
 
 
-        self.pub1_edge = rospy.Publisher('Edge_point1',
-                                         PointCloud2,
-                                         queue_size=10)
-        self.pub2_edge = rospy.Publisher('Edge_point2',
-                                         PointCloud2,
-                                         queue_size=10)
-        self.pub3_edge = rospy.Publisher('Edge_point3',
-                                         PointCloud2,
-                                         queue_size=10)
-        self.pub4_edge = rospy.Publisher('Edge_point4',
-                                         PointCloud2,
-                                         queue_size=10)
-        self.pub5_edge = rospy.Publisher('Edge_point5',
-                                         PointCloud2,
-                                         queue_size=10)
-        self.pub6_edge = rospy.Publisher('Edge_point6',
-                                         PointCloud2,
-                                         queue_size=10)
-        self.pub7_edge = rospy.Publisher('Edge_point7',
-                                         PointCloud2,
-                                         queue_size=10)
-        self.pub8_edge = rospy.Publisher('Edge_point8',
-                                         PointCloud2,
-                                         queue_size=10)
+        # self.pub1_edge = rospy.Publisher('Edge_point1',
+        #                                  PointCloud2,
+        #                                  queue_size=10)
+        # self.pub2_edge = rospy.Publisher('Edge_point2',
+        #                                  PointCloud2,
+        #                                  queue_size=10)
+        # self.pub3_edge = rospy.Publisher('Edge_point3',
+        #                                  PointCloud2,
+        #                                  queue_size=10)
+        # self.pub4_edge = rospy.Publisher('Edge_point4',
+        #                                  PointCloud2,
+        #                                  queue_size=10)
+        # self.pub5_edge = rospy.Publisher('Edge_point5',
+        #                                  PointCloud2,
+        #                                  queue_size=10)
+        # self.pub6_edge = rospy.Publisher('Edge_point6',
+        #                                  PointCloud2,
+        #                                  queue_size=10)
+        # self.pub7_edge = rospy.Publisher('Edge_point7',
+        #                                  PointCloud2,
+        #                                  queue_size=10)
+        # self.pub8_edge = rospy.Publisher('Edge_point8',
+        #                                  PointCloud2,
+        #                                  queue_size=10)
 
 
         # self.pub_plane = rospy.Publisher('Plane_rk', Plane, queue_size=10)
@@ -122,16 +120,16 @@ class PCLPublisher:
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         rospy.spin()
 
-    def request_handler(self, req):
-        n = req.n_stacked
-        loc = req.location_stack
+    # def request_handler(self, req):
+    #     n = req.n_stacked
+    #     loc = req.location_stack
 
-        # let subscriber pubisher rolling 
-        # store it in class attribute, let service return latest stored perceptin msg 
+    #     # let subscriber pubisher rolling 
+    #     # store it in class attribute, let service return latest stored perceptin msg 
 
-        # calculate on request!
+    #     # calculate on request!
 
-        return size, pose_array, color_names, confidence
+    #     return size, pose_array, color_names, confidence
 
 
     def callback(self, data):

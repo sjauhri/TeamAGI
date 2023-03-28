@@ -30,8 +30,8 @@ class ClusterHandler:
         confidences = []
         model_cloud = utils.generate_source_cloud([0, 0, 0, 100], 3500)
         # clustering
-        
-        cluster_indices, centroids = utils.k_means_clustering(np.array(pointcloud), n_clusters, 1000)
+
+        cluster_indices, centroids = utils.k_means_clustering(np.array(pointcloud), n_clusters, 300)
 
         for i in range(n_clusters):
             clustered_points = pointcloud.extract(cluster_indices[i],
@@ -262,3 +262,5 @@ class ClusterHandler:
         else:
             print("n_points_in_threshold False")
             return False 
+        
+  
