@@ -28,7 +28,6 @@ def get_gripper_status(left_right):
     """
     gripper_pos = []
     gripper_vel = []
-    print(left_right)
 
     if left_right == "left":
         topic_name = "/parallel_gripper_left_controller/state"
@@ -54,9 +53,10 @@ def get_gripper_status(left_right):
 
     if gripper_pos_actual[0] > 0.07:
         return "open"
-    elif gripper_pos_error[0] < -0.01:
+    # elif gripper_pos_error[0] < -0.0001:
+    elif gripper_pos_actual[0] > 0.040:
         return "with_cube"
-    elif gripper_pos_actual[0] < 0.01:
+    elif gripper_pos_actual[0] < 0.040:
         return "closed"
     else:
         return "unknown"
@@ -97,8 +97,7 @@ def open_gripper(left_right):
 
 def get_arm(cube):
     pose = np.array(([[cube.pose.pose.position.x,cube.pose.pose.position.y,cube.pose.pose.position.z,\
-                    cube.pose.pose.orientation.x,cube.pose.pose.orientation.y,cube.pose.pose.orientation.z]]))
-    print(pose)
+                    cube.pose.pose.orientation.x,cube.pose.pose.orientation.y,cube.pose.pose.orientation.z, cube.pose.pose.orientation.w]]))
     arm = Arm(pose)
     arm = arm.getArm()
     if arm is None:

@@ -106,9 +106,9 @@ class SceneUtils():
 
         reachability = Arm(free_points)
 
-        # Add z coordinate to free_points and set it to table height
+        # Add z coordinate to free_points and set it to table height +  offset for placing the
         free_points = np.hstack((free_points, np.ones(
-            (free_points.shape[0], 1)) * ((table_pose.position.z * 2) + 0.06)))
+            (free_points.shape[0], 1)) * ((table_pose.position.z * 2) + 0.0375)))
 
         r_left = reachability.getScore3D(reachability.map3D_l, free_points)
         r_right = reachability.getScore3D(reachability.map3D_r, free_points)
