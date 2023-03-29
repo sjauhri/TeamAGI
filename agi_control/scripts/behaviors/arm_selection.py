@@ -39,7 +39,7 @@ class Arm():
         # Search in lower three levels
         for dirpath, dirnames, filenames in os.walk("."):
             if "6D3D_reach_maps" in dirnames:
-                return os.path.join(dirpath, "maps")
+                return os.path.join(dirpath, "6D3D_reach_maps")
 
         # If maps folder is not found, return path "/src/TeamAGI/agi_control/scripts/maps"
         # /home/hypatia/tiago_agi_ws/src/TeamAGI/agi_control/scripts/behaviors/arm_selection.py
@@ -59,14 +59,14 @@ class Arm():
                 with h5py.File(os.path.join(root, "score_map_right.h5"),
                                "r") as f:
                     map6D_r = np.array(f["map_r_s"])
-            # if "filtered_3D_reach_map_gripper_left.npy" in files:
-            #     map3D_l = np.load(
-            #         os.path.join(root,
-            #                      "filtered_3D_reach_map_gripper_left.npy"))
-            # if "filtered_3D_reach_map_gripper_right.npy" in files:
-            #     map3D_r = np.load(
-            #         os.path.join(root,
-            #                      "filtered_3D_reach_map_gripper_right.npy"))
+            if "filtered_3D_reach_map_gripper_left.npy" in files:
+                map3D_l = np.load(
+                    os.path.join(root,
+                                 "filtered_3D_reach_map_gripper_left.npy"))
+            if "filtered_3D_reach_map_gripper_right.npy" in files:
+                map3D_r = np.load(
+                    os.path.join(root,
+                                 "filtered_3D_reach_map_gripper_right.npy"))
 
         return map6D_l, map6D_r, map3D_l, map3D_r
 
