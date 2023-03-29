@@ -44,6 +44,7 @@ class StackGoalsActionPolicy(ActionPolicy):
             target_pose = PoseStamped()
             target_pose.pose.position.x = top_goal.pose.pose.position.x
             target_pose.pose.position.y = top_goal.pose.pose.position.y
+            #TODO Adjust height of stacking
             target_pose.pose.position.z = top_goal.pose.pose.position.z + 0.045
             return target_pose
 

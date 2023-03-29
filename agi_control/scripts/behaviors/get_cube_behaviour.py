@@ -73,6 +73,8 @@ class StackCubesActionPolicy(ActionPolicy):
         # Get the position and orientation of the next cube
         next_orient = next_cube.pose.pose.orientation
 
+        # Hardcode place position
+
         # For the first cube, find a free region
         if not self._blackboard.get("cubes_in_stack"):
             target = self._scene_utils.get_free_region()
@@ -85,7 +87,7 @@ class StackCubesActionPolicy(ActionPolicy):
             target_pos = top_cube.pose.pose.position
             x = target_pos.x
             y = target_pos.y
-            z = target_pos.z + 0.06
+            z = target_pos.z + 0.060
 
         # Set the target pose
         target_pose = PoseStamped()
@@ -150,6 +152,9 @@ class GetCubeBehaviour(py_trees.behaviour.Behaviour):
         self._action_policy.update()
 
         # Get the next cube to pick
+        blockmanager = self._blackboard.get("block_manager")
+
+        blockmanager.fit_neighbors()
         next_cube = self._action_policy.get_next_cube()
 
         # Get the target location for the next cube
@@ -159,6 +164,9 @@ class GetCubeBehaviour(py_trees.behaviour.Behaviour):
         else:
             self._blackboard.set("next_cube", next_cube)
             self._blackboard.set("target_location", target_location)
+
+            # inflate blocks to avoid collision
+            blockmanager.fat_neighbors()
             return py_trees.common.Status.SUCCESS
 
 

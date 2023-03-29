@@ -11,6 +11,8 @@ from moveit_commander import PlanningSceneInterface
 # AGI imports
 from utils.robot_utils import get_arm
 
+import py_trees
+
 
 class Block():
     """This class represents a block in the scene.
@@ -34,7 +36,6 @@ class Block():
         self._properties = {}
         self._confidence = confidence
         self._left_right = get_arm(self)
-        print(self._left_right)
         self._invalid = False
 
     @property
@@ -90,6 +91,25 @@ class Block():
         except:
             pass
 
+    def inflate(self):
+        size = (0.055, 0.055, 0.055)
+        self.resize_block(size)
+
+    def deflate(self):
+        self.resize_block((0.045, 0.045, 0.045))
+
+    def resize_block(self, size):
+        try:
+            print("Resize Block")
+            self._scene.remove_world_object(self._id)
+            self._scene.add_box(self._id, self._pose, size)
+            rospy.sleep(0.1)
+            self._collision_object = self._scene.get_objects([self._id
+                                                                ])[self._id]
+        except:
+            pass
+
+
     def remove(self):
         self._scene.remove_world_object(self._id)
 
@@ -108,7 +128,9 @@ class BlockManager():
     """
 
     def __init__(self):
+        self.next_id = 0
         self._blocks = {}
+        self._blackboard = py_trees.blackboard.Blackboard()
 
     def add_block(self, id, pose, confidence, color=""):
         """This function adds a block to the block manager.
@@ -221,8 +243,9 @@ class BlockManager():
         # check if the block is already in the scene
         id = self.identify_block(pose, color=color)
         if id is None:
-            id = "box" + str(len(self._blocks))
+            id = "box" + str(self.next_id)
             self.add_block(id, pose, confidence, color)
+            self.next_id += 1
         else:
             self.update_block(id, pose, confidence)
 
@@ -244,9 +267,28 @@ class BlockManager():
             id (str): The id of the block
         """
         rospy.loginfo("Removing block " + id)
-        block = self._blocks[id]
-        block.remove()
-        self._blocks.pop(id)
+        if id in self._blocks:
+            block = self._blocks[id]
+            block.remove()
+            self._blocks.pop(id)
+
+    def fat_neighbors(self):
+        for block in self._blocks.values():
+            pick_block = self._blackboard.get("next_cube")
+            if pick_block is None:
+                return
+            if not block.properties.get("in_stack"):
+                if block.id != pick_block.id:
+                    block.inflate()
+
+    def fit_neighbors(self):
+        for block in self._blocks.values():
+            pick_block = self._blackboard.get("next_cube")
+            if pick_block is None:
+                return
+            if not block.properties.get("in_stack"):
+                if block.id != pick_block.id:
+                    block.deflate()
 
     def print_block_info(self):
         """ debugging """

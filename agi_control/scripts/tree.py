@@ -1,6 +1,9 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+
+
+import operator
 # ROS imports
 import rospy
 
@@ -57,10 +60,18 @@ def agi_ctrl_root():
     idle = py_trees.behaviours.Running(name="Idle")
 
     # Ready pose robot
-    ready_pose = robot_behaviors.ReadyPose(name="Ready Pose")
+    ready_pose = py_trees.composites.Sequence(name="Ready Pose")
+    # ready_pose_guard = py_trees.blackboard.CheckBlackboardVariable(
+    #     name="AG - ReadyPose | ReadyPose",
+    #     variable_name="status_action_pick",
+    #     expected_value=py_trees.common.Status.SUCCESS,
+    #     comparison_operator=operator.eq)
+    ready_pose_action = robot_behaviors.ReadyPose(name="Ready Pose")
 
     tasks.add_child(pick_place)
     tasks.add_child(ready_pose)
+    # ready_pose.add_child(ready_pose_guard)
+    ready_pose.add_child(ready_pose_action)
     root.add_child(data2bb)
     root.add_child(tasks)
 
