@@ -31,7 +31,8 @@ class Arm():
         # Search in current directory and upper three levels
         for i in range(4):
             parent_dirs = os.path.join(*([os.pardir] * i) + [''])
-            maps_path = os.path.join(os.getcwd(), parent_dirs, "6D3D_reach_maps")
+            maps_path = os.path.join(os.getcwd(), parent_dirs,
+                                     "6D3D_reach_maps")
             if os.path.exists(maps_path):
                 return maps_path
 
@@ -42,8 +43,8 @@ class Arm():
 
         # If maps folder is not found, return path "/src/TeamAGI/agi_control/scripts/maps"
         # /home/hypatia/tiago_agi_ws/src/TeamAGI/agi_control/scripts/behaviors/arm_selection.py
-        return os.path.join(os.getcwd(), "tiago_agi_ws", "src", "TeamAGI", "agi_control",
-                            "scripts", "behaviors", "maps")
+        return os.path.join(os.getcwd(), "tiago_agi_ws", "src", "TeamAGI",
+                            "agi_control", "scripts", "behaviors", "maps")
 
     def load_maps(self):
         maps_folder = self.find_maps_folder()
@@ -58,14 +59,14 @@ class Arm():
                 with h5py.File(os.path.join(root, "score_map_right.h5"),
                                "r") as f:
                     map6D_r = np.array(f["map_r_s"])
-            if "filtered_3D_reach_map_gripper_left.npy" in files:
-                map3D_l = np.load(
-                    os.path.join(root,
-                                 "filtered_3D_reach_map_gripper_left.npy"))
-            if "filtered_3D_reach_map_gripper_right.npy" in files:
-                map3D_r = np.load(
-                    os.path.join(root,
-                                 "filtered_3D_reach_map_gripper_right.npy"))
+            # if "filtered_3D_reach_map_gripper_left.npy" in files:
+            #     map3D_l = np.load(
+            #         os.path.join(root,
+            #                      "filtered_3D_reach_map_gripper_left.npy"))
+            # if "filtered_3D_reach_map_gripper_right.npy" in files:
+            #     map3D_r = np.load(
+            #         os.path.join(root,
+            #                      "filtered_3D_reach_map_gripper_right.npy"))
 
         return map6D_l, map6D_r, map3D_l, map3D_r
 
@@ -74,19 +75,14 @@ class Arm():
         list_score = []
         for p in pos:
             if left_right == "l":
-                min_x, max_x, = (-1.2, 1.2)
                 min_y, max_y, = (-1.35, 0.6)
-                min_z, max_z, = (-0.35, 2.1)
-                min_roll, max_roll, = (-np.pi, np.pi)
-                min_pitch, max_pitch, = (-np.pi / 2, np.pi / 2)
-                min_yaw, max_yaw, = (-np.pi, np.pi)
             else:
-                min_x, max_x, = (-1.2, 1.2)
                 min_y, max_y, = (-0.6, 1.35)
-                min_z, max_z, = (-0.35, 2.1)
-                min_roll, max_roll, = (-np.pi, np.pi)
-                min_pitch, max_pitch, = (-np.pi / 2, np.pi / 2)
-                min_yaw, max_yaw, = (-np.pi, np.pi)
+            min_x, max_x, = (-1.2, 1.2)
+            min_z, max_z, = (-0.35, 2.1)
+            min_roll, max_roll, = (-np.pi, np.pi)
+            min_pitch, max_pitch, = (-np.pi / 2, np.pi / 2)
+            min_yaw, max_yaw, = (-np.pi, np.pi)
 
             cartesian_res = 0.05
             angular_res = np.pi / 8
@@ -120,9 +116,9 @@ class Arm():
             # Use modulo to avoid out of bounds index
             if map_idx > len(map):
                 map_idx = map_idx % len(map)
-
             # Get the score from the score map array
-            list_score.append(map[np.floor(map_idx).astype(int)])
+            score = map[np.floor(map_idx).astype(int)]
+            list_score.append(score)
 
         return list_score
 
@@ -161,6 +157,63 @@ class Arm():
         list_score = map[index, 3].tolist()
         return list_score
 
+    def getScore3D_from6DMap(self, map, pos, left_right):
+        # reach map,poses -> list of scores
+        list_score = []
+        for p in pos:
+            if left_right == "l":
+                min_y, max_y, = (-1.35, 0.6)
+            else:
+                min_y, max_y, = (-0.6, 1.35)
+            min_x, max_x, = (-1.2, 1.2)
+            min_z, max_z, = (-0.35, 2.1)
+            min_roll, max_roll, = (-np.pi, np.pi)
+            min_pitch, max_pitch, = (-np.pi / 2, np.pi / 2)
+            min_yaw, max_yaw, = (-np.pi, np.pi)
+
+            p = np.append(p, [min_roll, min_pitch, min_yaw], axis=0)
+
+            cartesian_res = 0.05
+            angular_res = np.pi / 8
+
+            x_bins = np.ceil((max_x - min_x) / cartesian_res)
+            y_bins = np.ceil((max_y - min_y) / cartesian_res)
+            z_bins = np.ceil((max_z - min_z) / cartesian_res)
+            roll_bins = np.ceil((max_roll - min_roll) / angular_res)
+            pitch_bins = np.ceil((max_pitch - min_pitch) / angular_res)
+            yaw_bins = np.ceil((max_yaw - min_yaw) / angular_res)
+
+            # Define the offset values for indexing the map
+            x_ind_offset = y_bins * z_bins * roll_bins * pitch_bins * yaw_bins
+            y_ind_offset = z_bins * roll_bins * pitch_bins * yaw_bins
+            z_ind_offset = roll_bins * pitch_bins * yaw_bins
+            roll_ind_offset = pitch_bins * yaw_bins
+            pitch_ind_offset = yaw_bins
+            yaw_ind_offset = 1
+
+            # Convert the input pose to voxel coordinates
+            x_idx = int(np.floor((p[0] - min_x) / cartesian_res))
+            y_idx = int(np.floor((p[1] - min_y) / cartesian_res))
+            z_idx = int(np.floor((p[2] - min_z) / cartesian_res))
+            roll_idx = int(np.floor((p[3] - min_roll) / angular_res))
+            pitch_idx = int(np.floor((p[4] - min_pitch) / angular_res))
+            yaw_idx = np.floor((p[5] - min_yaw) / angular_res).astype(int)
+
+            # Compute the index in the reachability map array
+            map_idx = x_idx * x_ind_offset + y_idx * y_ind_offset + z_idx * z_ind_offset + roll_idx  \
+            * roll_ind_offset + pitch_idx * pitch_ind_offset + yaw_idx * yaw_ind_offset
+            # Use modulo to avoid out of bounds index
+            if map_idx > len(map):
+                map_idx = map_idx % len(map)
+
+            # Get the score from the score map array
+            score_idx_ = np.floor(map_idx).astype(int)
+            bins = int(roll_bins * pitch_bins * yaw_bins)
+            score = np.mean(map[score_idx_:score_idx_ + bins])
+            list_score.append(score)
+
+        return list_score
+
     def getArm(self):
         # better reachability score -> select arm
         list_arm = []
@@ -168,22 +221,29 @@ class Arm():
             list_score_l = self.getScore6D(Arm.map6D_l, self.pos, "l")
             list_score_r = self.getScore6D(Arm.map6D_r, self.pos, "r")
         elif self.pos.shape[1] == 3:
-            list_score_l = self.getScore3D(Arm.map3D_l, self.pos)
-            list_score_r = self.getScore3D(Arm.map3D_r, self.pos)
+            list_score_l = self.getScore3D_from6DMap(Arm.map6D_l, self.pos,
+                                                     "l")
+            list_score_r = self.getScore3D_from6DMap(Arm.map6D_r, self.pos,
+                                                     "l")
+            # list_score_l = self.getScore3D(Arm.map6D_l, self.pos)
+            # list_score_r = self.getScore3D(Arm.map6D_r, self.pos)
+
         else:
             raise ValueError(
                 "Error: the inputed map shape should be (1,6),(n,6),(1,3) or (n,3)."
             )
+        # print("score_l:",list_score_l)
+        # print("score_r:",list_score_r)
 
         for i in range(len(list_score_l)):
             list_arm.append(self.selectArm(
                 list_score_l[i],
                 list_score_r[i]))  # unreachable="", left="left", right="right"
 
-            if len(list_arm) == 1:
-                return list_arm[0]
-            else:
-                return list_arm
+        if len(list_arm) == 1:
+            return list_arm[0]
+        else:
+            return list_arm
 
 
 if __name__ == '__main__':
