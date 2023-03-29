@@ -9,6 +9,7 @@ import utils
 import numpy as np
 import ctypes
 import struct
+import rospy
 
 
 class ClusterHandler:
@@ -26,6 +27,8 @@ class ClusterHandler:
     def perception_fixed_clusters(self, pointcloud, n_clusters):
         # for PerceptionMSG
         cube_poses = PoseArray()
+        cube_poses.header.frame_id = "base_footprint"
+        cube_poses.header.stamp = rospy.Time.now()
         color_names = []
         confidences = []
         model_cloud = utils.generate_source_cloud([0, 0, 0, 100], 3500)
@@ -44,6 +47,8 @@ class ClusterHandler:
             #
             icp_pose, icp_confidence = self._get_pose_icp(model_cloud, clustered_points, centroids[i], get_confidence=True)
             cube_poses.poses.append(icp_pose)
+
+            # TODO add stamp and frame here 
 
             # cube_poses.poses.append(self._get_pose(clustered_points, centroids[i]))
             color_names.append(self._get_color(clustered_points))

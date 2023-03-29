@@ -45,8 +45,8 @@ class PCLHandler:
                                 queue_size=10)
         
         self.pub_cube_poses = rospy.Publisher('Cube_Poses',
-                        PoseArray,
-                        queue_size=10)
+                                        PoseArray,
+                                        queue_size=10)
 
         n_max = 30
         distance = 0.035
