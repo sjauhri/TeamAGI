@@ -63,7 +63,7 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         self.blackboard = Blackboard()
         self.blackboard.set("block_manager", self.block_manager)
         # Add table to the planning scene
-        table = {"size": [0.60, 0.75, 0.455]}
+        table = {"size": [0.60, 0.75, 0.465]}
         table_pose = PoseStamped()
         table_pose.header.frame_id = "base_footprint"
         table_pose.pose.position.x = 0.5
@@ -94,16 +94,16 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
         Returns:
             None
         """
-        console.loginfo("in init scene behavior")
+        # console.loginfo("in init scene behavior")
         # Get the perception data
         # from topic
         # perception_data = self._get_published_perception()
         
         # from service 
+        console.loginfo("Taking time to enjoy the view")
+        rospy.sleep(2)
         perception_data = self._get_perception_service()
-
-        print(perception_data)
-        
+       
         console.loginfo("Read perception data")
 
         # Create cubes from perception data
@@ -112,6 +112,11 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
             pose_stamp = PoseStamped()
             pose_stamp.header.frame_id = "base_footprint"
             pose_stamp.pose = pose
+            pose_stamp.pose.position.x += 0.005
+            # pose_stamp.pose.orientation.x = 0
+            # pose_stamp.pose.orientation.y = 0
+            # pose_stamp.pose.orientation.z = 0
+            # pose_stamp.pose.orientation.w = 1
 
             self.block_manager.manage(pose_stamp,
                                       confidence=perception_data.confidence[i],
@@ -153,7 +158,6 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
             # check place target in tree!
             # Update pose of first stacked cube!
             loc = cubes_in_stack[0]._pose
-            print(loc)
         else:
             n_stacked = 0
             # default location
@@ -170,7 +174,6 @@ class GetSceneBlocks(py_trees.behaviour.Behaviour):
 
         perc_res = self.perception_server(int(n_stacked), loc)
         msg = perc_res.perception_msg
-        print(msg)
         return msg
 
 
