@@ -123,9 +123,12 @@ def get_pose_icp(A, B):
     A=np.array(A)[0:3]
     B=np.array(B)[0:3]
     C=B-A
-    X=np.arctan2(C[2], C[1])
-    Y=np.arctan2(C[0], C[2])
+    # X=np.arctan2(C[2], C[1])
+    # Y=np.arctan2(C[0], C[2])
     Z=np.arctan2(C[1], C[0])
+    X = 0.0
+    Y = 0.0
+    # Z = 0.0
     q=quaternion_from_euler(Y,X,Z)
     pose = Pose()
     pose.position.x = A[0]

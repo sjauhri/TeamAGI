@@ -29,7 +29,7 @@ if __name__ == '__main__':
     try:
         loc = PoseStamped()
         # perc_res = perc_srv(n_stacked=int(3), location_stack=loc)
-        perc_res = perc_srv(int(99), None)
+        perc_res = perc_srv(int(0), None)
         print(perc_res)
     except rospy.ServiceException as exc:
         print("Service did not process request: " + str(exc))

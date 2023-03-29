@@ -40,10 +40,13 @@ class PCLHandler:
                                         PointCloud2,
                                         queue_size=10)
         
-        self.pub_pcl_raw = rospy.Publisher('Pointcloud2_raw_sub',
+        self.pub_pcl_raw = rospy.Publisher('Pointcloud2_raw_input',
                                 PointCloud2,
                                 queue_size=10)
-
+        
+        self.pub_cube_poses = rospy.Publisher('Cube_Poses',
+                        PoseArray,
+                        queue_size=10)
 
         n_max = 30
         distance = 0.035
@@ -114,6 +117,10 @@ class PCLHandler:
         self.pub_pcl_planes.publish(self.pcl_to_ros(cloud_plane))
 
         cube_poses, color_names, confidences = self.cluster_handler.perception_fixed_clusters(cloud_plane, int(n_cluster_current))
+        
+        print("publishing cube poses!")
+        self.pub_cube_poses.publish(cube_poses)
+        
         return cube_poses, color_names, confidences
 
         # fixed_n_clusters = True
@@ -294,7 +301,7 @@ class PCLHandler:
         # TODO: get pose
         x=place_pose.pose.position.x
         y=place_pose.pose.position.y
-        thres = 0.03
+        thres = 0.07
         for point in cloud_array:
             if (point[0]>(x+thres) or point[0]<(x-thres)) and (point[1]>(y+thres) or point[1]<(y-thres)):
                 cloud_return.append(point)
