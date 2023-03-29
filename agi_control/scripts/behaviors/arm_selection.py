@@ -13,6 +13,8 @@ import numpy as np
 import cPickle as pickle
 import timeit
 import h5py
+from scipy.spatial.transform import Rotation
+import pdb
 
 
 class Arm():
@@ -20,6 +22,10 @@ class Arm():
     _maps_loaded = False
 
     def __init__(self, pose):
+        if pose.shape[1] == 7:
+            pose_quat = pose[:,3:]
+            pose_euler = Rotation.from_quat(pose_quat).as_euler('xyz', degrees=True)
+            pose = np.hstack((pose[:,:3], pose_euler))
         self.pos = pose
         if not Arm._maps_loaded:  # if maps haven't been loaded yet, load them
             Arm.map6D_l, Arm.map6D_r, Arm.map3D_l, Arm.map3D_r = self.load_maps(
