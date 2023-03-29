@@ -66,6 +66,13 @@ class PlaceBehaviour(py_trees_ros.actions.ActionClient):
                 self._blackboard.get("cubes_not_in_center").append(placed_cube)
             placed_cube._properties["in_stack"] = True
             placed_cube._properties["fixed"] = True
+            # inflate to block for collision avoidance
+            placed_cube.resize_block((0.055, 0.055, 0.045))
+            target_location.pose.position.z -= 0.015  # offset correction!
+            # target_location.pose.orientation.x = 0
+            # target_location.pose.orientation.y = 0
+            # target_location.pose.orientation.z = 0
+            # target_location.pose.orientation.w = 1
             placed_cube._pose = target_location
             placed_cube.update()
 

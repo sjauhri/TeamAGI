@@ -48,3 +48,4 @@ class PlaceRecovery(py_trees.behaviour.Behaviour):
             open_gripper(left_right)
             self.scene.remove_attached_object()
             block_manager.remove_block(next_cube.id)
+            self._blackboard.set("status_action_place","")
