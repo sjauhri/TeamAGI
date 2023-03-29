@@ -34,6 +34,13 @@ class PickRecovery(py_trees.behaviour.Behaviour):
             console.loginfo("Recovering from pick end condition failure")
             self.recover_ec_pick()
 
+
+        status_action_pick = self._blackboard.get('status_action_pick')
+        if status_action_pick is py_trees.common.Status.FAILURE:
+            console.loginfo("Recovering from pick action")
+            self.recover_action_pick()
+
+
     def update(self):
         return py_trees.common.Status.SUCCESS
 
@@ -47,3 +54,18 @@ class PickRecovery(py_trees.behaviour.Behaviour):
             open_gripper(left_right)
             self.scene.remove_attached_object()
             block_manager.remove_block(next_cube.id)
+            self._blackboard.set("status_ec_pick","")
+
+    def recover_action_pick(self):
+        next_cube = self._blackboard.get("next_cube")
+
+        if next_cube is not None:
+            console.loginfo("Trying different arm next time")
+            cube_left_right = next_cube.left_right
+            if cube_left_right == 'left':
+                next_cube.left_right = 'right'
+            else:
+                next_cube.left_right = 'left'
+        
+            self._blackboard.set("status_action_pick","")
+            

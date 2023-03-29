@@ -56,6 +56,12 @@ class PickBehaviour(py_trees_ros.actions.ActionClient):
         rospy.logdebug("Initialising PickBehaviour")
         super(PickBehaviour, self).initialise()
 
+    def update(self):
+        action_result = super(PickBehaviour, self).update()
+        self._blackboard.set('status_action_pick', action_result)
+        return action_result
+
+
     def get_pick_up_goal(self):
         """Generates the goal for the action client
         
